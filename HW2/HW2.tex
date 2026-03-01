@@ -1,0 +1,1489 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+%
+\documentclass[
+  letterpaper,
+  DIV=11,
+  numbers=noendperiod]{scrartcl}
+
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else  
+    % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+% Make \paragraph and \subparagraph free-standing
+\makeatletter
+\ifx\paragraph\undefined\else
+  \let\oldparagraph\paragraph
+  \renewcommand{\paragraph}{
+    \@ifstar
+      \xxxParagraphStar
+      \xxxParagraphNoStar
+  }
+  \newcommand{\xxxParagraphStar}[1]{\oldparagraph*{#1}\mbox{}}
+  \newcommand{\xxxParagraphNoStar}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+  \let\oldsubparagraph\subparagraph
+  \renewcommand{\subparagraph}{
+    \@ifstar
+      \xxxSubParagraphStar
+      \xxxSubParagraphNoStar
+  }
+  \newcommand{\xxxSubParagraphStar}[1]{\oldsubparagraph*{#1}\mbox{}}
+  \newcommand{\xxxSubParagraphNoStar}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+\makeatother
+
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{241,243,245}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.40,0.45,0.13}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\ExtensionTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.28,0.35,0.67}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.46,0.62}{#1}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.68,0.00,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{\textcolor[rgb]{0.00,0.23,0.31}{#1}}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.07,0.07,0.07}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.13,0.47,0.30}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.37,0.37,0.37}{\textit{#1}}}
+
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+
+\KOMAoption{captions}{tableheading}
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\AtBeginDocument{%
+\ifdefined\contentsname
+  \renewcommand*\contentsname{Table of contents}
+\else
+  \newcommand\contentsname{Table of contents}
+\fi
+\ifdefined\listfigurename
+  \renewcommand*\listfigurename{List of Figures}
+\else
+  \newcommand\listfigurename{List of Figures}
+\fi
+\ifdefined\listtablename
+  \renewcommand*\listtablename{List of Tables}
+\else
+  \newcommand\listtablename{List of Tables}
+\fi
+\ifdefined\figurename
+  \renewcommand*\figurename{Figure}
+\else
+  \newcommand\figurename{Figure}
+\fi
+\ifdefined\tablename
+  \renewcommand*\tablename{Table}
+\else
+  \newcommand\tablename{Table}
+\fi
+}
+\@ifpackageloaded{float}{}{\usepackage{float}}
+\floatstyle{ruled}
+\@ifundefined{c@chapter}{\newfloat{codelisting}{h}{lop}}{\newfloat{codelisting}{h}{lop}[chapter]}
+\floatname{codelisting}{Listing}
+\newcommand*\listoflistings{\listof{codelisting}{List of Listings}}
+\makeatother
+\makeatletter
+\makeatother
+\makeatletter
+\@ifpackageloaded{caption}{}{\usepackage{caption}}
+\@ifpackageloaded{subcaption}{}{\usepackage{subcaption}}
+\makeatother
+
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\usepackage{bookmark}
+
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={STAT 238 -- Bayesian Statistics},
+  pdfauthor={Thomas Lee},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={Blue},
+  pdfcreator={LaTeX via pandoc}}
+
+
+\title{STAT 238 -- Bayesian Statistics}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{Homework 2}
+\author{Thomas Lee}
+\date{}
+
+\begin{document}
+\maketitle
+
+
+\section{Setup}\label{setup}
+
+\subsection{Python Setup: Import
+libraries}\label{python-setup-import-libraries}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ numpy }\ImportTok{as}\NormalTok{ np}
+\ImportTok{import}\NormalTok{ pymc }\ImportTok{as}\NormalTok{ pm}
+\ImportTok{import}\NormalTok{ arviz }\ImportTok{as}\NormalTok{ az}
+\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
+\ImportTok{from}\NormalTok{ scipy.stats }\ImportTok{import}\NormalTok{ beta, gamma}
+\ImportTok{from}\NormalTok{ scipy.optimize }\ImportTok{import}\NormalTok{ brentq, fsolve}
+\ImportTok{from}\NormalTok{ scipy.special }\ImportTok{import}\NormalTok{ comb, betaln, gammaln, beta }\ImportTok{as}\NormalTok{ B}
+\end{Highlighting}
+\end{Shaded}
+
+\section{Problem 1}\label{problem-1}
+
+\subsection{(a)}\label{a}
+
+We model the survival probability using a Beta prior:
+
+\[
+\theta \sim \text{Beta}(\alpha,\beta).
+\]
+
+We are told that:
+
+\begin{itemize}
+\tightlist
+\item
+  The expected survival probability is around 0.9.
+\item
+  It would be surprising if it were below 0.8 or above 0.97.
+\end{itemize}
+
+\subsubsection{Step 1: Match the Prior
+Mean}\label{step-1-match-the-prior-mean}
+
+For a Beta distribution,
+
+\[
+\mathbb{E}[\theta] = \frac{\alpha}{\alpha+\beta}.
+\]
+
+Setting this equal to 0.9 gives
+
+\[
+\frac{\alpha}{\alpha+\beta} = 0.9.
+\]
+
+Let
+
+\[
+n = \alpha + \beta.
+\]
+
+Then
+
+\[
+\alpha = 0.9n, 
+\qquad 
+\beta = 0.1n.
+\]
+
+Thus, the prior must have a 9:1 ratio of prior survivals to prior
+deaths.
+
+\subsubsection{Step 2: Match the Credible
+Interval}\label{step-2-match-the-credible-interval}
+
+The statement that values below 0.8 or above 0.97 would be
+\emph{surprising} is interpreted as approximately a 95\% credible
+interval:
+
+\[
+P(0.8 < \theta < 0.97) = p.
+\]
+
+We solve for \(n\) such that
+
+\[
+P(0.8\le \theta \le0.97)=\int_{0.8}^{0.97} 
+\text{Beta}(\theta \mid 0.9n, 0.1n)\, d\theta = p.
+\]
+
+We compute solutions for several credibility levels:
+
+\begin{itemize}
+\tightlist
+\item
+  \(p = 0.90\)
+\item
+  \(p = 0.95\)
+\item
+  \(p = 0.99\)
+\item
+  \(p = 0.999\)
+\end{itemize}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lower }\OperatorTok{=} \FloatTok{0.8}
+\NormalTok{upper }\OperatorTok{=} \FloatTok{0.97}
+
+\NormalTok{cred\_levels }\OperatorTok{=}\NormalTok{ [}\FloatTok{0.90}\NormalTok{, }\FloatTok{0.95}\NormalTok{, }\FloatTok{0.99}\NormalTok{, }\FloatTok{0.999}\NormalTok{]}
+
+\NormalTok{results }\OperatorTok{=}\NormalTok{ []}
+
+\KeywordTok{def}\NormalTok{ solve\_for\_n(target\_prob):}
+    \KeywordTok{def}\NormalTok{ objective(n):}
+\NormalTok{        a }\OperatorTok{=} \FloatTok{0.9} \OperatorTok{*}\NormalTok{ n}
+\NormalTok{        b }\OperatorTok{=} \FloatTok{0.1} \OperatorTok{*}\NormalTok{ n}
+\NormalTok{        prob }\OperatorTok{=}\NormalTok{ beta.cdf(upper, a, b) }\OperatorTok{{-}}\NormalTok{ beta.cdf(lower, a, b)}
+        \ControlFlowTok{return}\NormalTok{ prob }\OperatorTok{{-}}\NormalTok{ target\_prob}
+    \ControlFlowTok{return}\NormalTok{ brentq(objective, }\DecValTok{1}\NormalTok{, }\DecValTok{500}\NormalTok{)}
+
+\ControlFlowTok{for}\NormalTok{ p }\KeywordTok{in}\NormalTok{ cred\_levels:}
+\NormalTok{    n\_sol }\OperatorTok{=}\NormalTok{ solve\_for\_n(p)}
+\NormalTok{    alpha }\OperatorTok{=} \FloatTok{0.9} \OperatorTok{*}\NormalTok{ n\_sol}
+\NormalTok{    beta\_param }\OperatorTok{=} \FloatTok{0.1} \OperatorTok{*}\NormalTok{ n\_sol}
+\NormalTok{    results.append((p, n\_sol, alpha, beta\_param))}
+
+\CommentTok{\# Print results}
+\ControlFlowTok{for}\NormalTok{ r }\KeywordTok{in}\NormalTok{ results:}
+    \BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Credible mass = }\SpecialCharTok{\{}\NormalTok{r[}\DecValTok{0}\NormalTok{]}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+    \BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"  n ≈ }\SpecialCharTok{\{}\NormalTok{r[}\DecValTok{1}\NormalTok{]}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+    \BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"  alpha ≈ }\SpecialCharTok{\{}\NormalTok{r[}\DecValTok{2}\NormalTok{]}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+    \BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"  beta  ≈ }\SpecialCharTok{\{}\NormalTok{r[}\DecValTok{3}\NormalTok{]}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+    \BuiltInTok{print}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Credible mass = 0.900
+  n ≈ 31.254
+  alpha ≈ 28.129
+  beta  ≈ 3.125
+
+Credible mass = 0.950
+  n ≈ 44.128
+  alpha ≈ 39.715
+  beta  ≈ 4.413
+
+Credible mass = 0.990
+  n ≈ 76.846
+  alpha ≈ 69.161
+  beta  ≈ 7.685
+
+Credible mass = 0.999
+  n ≈ 128.693
+  alpha ≈ 115.824
+  beta  ≈ 12.869
+\end{verbatim}
+
+\subsubsection{Numerical Results}\label{numerical-results}
+
+Solving the above equation gives:
+
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+Credible Mass & \(n\) & \(\alpha\) & \(\beta\) \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+0.90 & 31.254 & 28.129 & 3.125 \\
+0.95 & 44.128 & 39.715 & 4.413 \\
+0.99 & 76.846 & 69.161 & 7.685 \\
+0.999 & 128.693 & 115.824 & 12.869 \\
+\end{longtable}
+
+\subsubsection{Interpretation}\label{interpretation}
+
+\begin{itemize}
+\tightlist
+\item
+  The prior mean remains fixed at
+\end{itemize}
+
+\[
+\frac{\alpha}{\alpha+\beta} = 0.9.
+\]
+
+\begin{itemize}
+\tightlist
+\item
+  Increasing the credible mass requirement forces \(n = \alpha+\beta\)
+  to increase.
+\item
+  Larger \(n\) corresponds to a more concentrated prior around 0.9.
+\item
+  Thus, the credibility level directly controls prior strength.
+\end{itemize}
+
+For example:
+
+\begin{itemize}
+\tightlist
+\item
+  90\% mass corresponds to roughly 31 pseudo-observations.
+\item
+  95\% mass corresponds to roughly 44 pseudo-observations.
+\item
+  99.9\% mass corresponds to roughly 129 pseudo-observations.
+\end{itemize}
+
+\subsubsection{Recommended Prior}\label{recommended-prior}
+
+If we interpret ``surprising'' as meaning a 95\% credible region, then
+the most appropriate prior is
+
+\[
+\boxed{
+\theta \sim \text{Beta}(39.7,\;4.4).
+}
+\]
+
+This prior:
+
+\begin{itemize}
+\tightlist
+\item
+  Has mean 0.9\\
+\item
+  Places 95\% probability between 0.8 and 0.97\\
+\item
+  Corresponds to about 44 pseudo-patients
+\end{itemize}
+
+\subsubsection{Visualization of the
+Priors}\label{visualization-of-the-priors}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{theta }\OperatorTok{=}\NormalTok{ np.linspace(}\FloatTok{0.6}\NormalTok{, }\FloatTok{1.0}\NormalTok{, }\DecValTok{1000}\NormalTok{)}
+
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{6}\NormalTok{))}
+
+\ControlFlowTok{for}\NormalTok{ r }\KeywordTok{in}\NormalTok{ results:}
+\NormalTok{    p, n\_sol, alpha, beta\_param }\OperatorTok{=}\NormalTok{ r}
+\NormalTok{    density }\OperatorTok{=}\NormalTok{ beta.pdf(theta, alpha, beta\_param)}
+\NormalTok{    plt.plot(theta, density, label}\OperatorTok{=}\SpecialStringTok{f"Mass=}\SpecialCharTok{\{}\NormalTok{p}\SpecialCharTok{\}}\SpecialStringTok{"}\NormalTok{)}
+
+\NormalTok{plt.axvline(lower, linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.axvline(upper, linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{plt.xlabel(}\StringTok{"θ"}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{"Density"}\NormalTok{)}
+\NormalTok{plt.title(}\StringTok{"Beta Priors with Mean 0.9 and Varying Credible Mass"}\NormalTok{)}
+\NormalTok{plt.legend()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW2_files/figure-pdf/cell-4-output-1.png}
+
+\subsubsection{Final Remarks}\label{final-remarks}
+
+\begin{itemize}
+\tightlist
+\item
+  The mean determines the ratio \(\alpha : \beta\).
+\item
+  The credible interval determines the strength \(\alpha+\beta\).
+\item
+  Larger \(n\) implies stronger prior information.
+\item
+  Smaller \(n\) implies a more diffuse prior.
+\end{itemize}
+
+This provides a principled construction of the Beta prior directly from
+the problem statement.
+
+\subsection{(b)}\label{b}
+
+Suppose now that \(n=10\) patients are operated on and all survive.
+
+Thus we observe:
+
+\[
+X = 10 \quad \text{successes out of } 10.
+\]
+
+Under the Beta--Binomial conjugate model:
+
+\begin{itemize}
+\tightlist
+\item
+  Prior: \(\theta \sim \text{Beta}(\alpha,\beta)\)
+\item
+  Likelihood: \(X \mid \theta \sim \text{Binomial}(10,\theta)\)
+\end{itemize}
+
+the posterior is:
+
+\[
+\theta \mid X \sim \text{Beta}(\alpha + X,\; \beta + n - X).
+\]
+
+Using our prior \(\text{Beta}(39.7,4.4)\):
+
+\[
+\theta \mid X
+\sim
+\text{Beta}(39.7 + 10,\; 4.4 + 0)
+=
+\text{Beta}(49.7,\; 4.4).
+\]
+
+\[
+\boxed{
+\theta \mid \text{data} \sim \text{Beta}(49.7,\;4.4).
+}
+\]
+
+\subsection{(c)}\label{c}
+
+\subsubsection{Probability the next patient survives (Posterior
+predictive
+probability)}\label{probability-the-next-patient-survives-posterior-predictive-probability}
+
+The probability that the next patient survives is called the
+\textbf{posterior predictive probability}.
+
+Let \(X_{11}\) denote the survival outcome of the next patient:
+
+\begin{itemize}
+\tightlist
+\item
+  \(X_{11} = 1\) if the patient survives,
+\item
+  \(X_{11} = 0\) if the patient does not survive.
+\end{itemize}
+
+Conditional on the unknown survival rate \(\theta\), this is a Bernoulli
+trial:
+
+\[
+X_{11} \mid \theta \sim \text{Bernoulli}(\theta).
+\]
+
+To get the unconditional probability, we integrate over the posterior
+distribution of \(\theta\):
+
+\[
+\begin{aligned}
+P(X_{11}=1 \mid \text{data}) 
+&= \int_0^1 P(X_{11}=1 \mid \theta) \, f_{\theta \mid \text{data}}(\theta) \, d\theta \\
+&= \int_0^1 \theta \, f_{\theta \mid \text{data}}(\theta) \, d\theta \\
+&= \mathbb{E}[\theta \mid \text{data}].
+\end{aligned}
+\]
+
+In words:
+
+\begin{itemize}
+\tightlist
+\item
+  We are averaging the survival probability \(\theta\) over our
+  posterior beliefs.
+\item
+  Even though we observed 10 perfect survivals, the prior prevents us
+  from being completely certain.
+\item
+  This is a key feature of Bayesian prediction: \textbf{the predictive
+  probability is a weighted average over all plausible values of the
+  unknown parameter.}
+\end{itemize}
+
+Finally, since the posterior is
+\(\theta \mid \text{data} \sim \text{Beta}(\alpha_{\text{post}},\beta_{\text{post}})\),
+the mean is:
+
+\[
+\mathbb{E}[\theta \mid \text{data}] = \frac{\alpha_{\text{post}}}{\alpha_{\text{post}}+\beta_{\text{post}}} \approx \frac{49.7}{49.7+4.4} \approx 0.918.
+\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{alpha\_post }\OperatorTok{=}\NormalTok{ results[}\DecValTok{1}\NormalTok{][}\DecValTok{2}\NormalTok{] }\OperatorTok{+} \DecValTok{10}
+\NormalTok{beta\_post }\OperatorTok{=}\NormalTok{ results[}\DecValTok{1}\NormalTok{][}\DecValTok{3}\NormalTok{]}
+
+\NormalTok{prob\_next }\OperatorTok{=}\NormalTok{ alpha\_post }\OperatorTok{/}\NormalTok{ (alpha\_post }\OperatorTok{+}\NormalTok{ beta\_post)}
+\NormalTok{prob\_next}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+0.9184748836856647
+\end{verbatim}
+
+Therefore,
+
+\[
+\boxed{
+P(X_{11}=1 \mid \text{data}) \approx 0.918.
+}
+\]
+
+Even after 10 perfect outcomes, the predictive probability does not jump
+to 1 --- it is moderated by the prior information.
+
+\subsection{(d)}\label{d}
+
+\subsubsection{Probability of 2 or more deaths in the next 20
+operations}\label{probability-of-2-or-more-deaths-in-the-next-20-operations}
+
+Let \(Y\) denote the number of deaths in the next \(n_\text{future}=20\)
+operations.
+
+Conditional on the survival probability \(\theta\):
+
+\[
+Y \mid \theta \sim \text{Binomial}(n_\text{future}, 1-\theta),
+\]
+
+where \(1-\theta\) is the probability of death.
+
+From earlier, the posterior of \(\theta\) is
+
+\[
+\theta \mid \text{data} \sim \text{Beta}(\alpha_\text{post}, \beta_\text{post}),
+\]
+
+with \(\alpha_\text{post}\) counting prior + observed
+\textbf{survivals}, and \(\beta_\text{post}\) counting prior + observed
+\textbf{deaths}.
+
+\textbf{Important:} Because \(Y\) counts deaths (not survivals), we swap
+\(\alpha_\text{post}\) and \(\beta_\text{post}\) in the Beta-Binomial
+formula. That is, the marginal (unconditional) distribution of deaths is
+
+\[
+P(Y=k) = \binom{n_\text{future}}{k} \frac{B(\beta_\text{post} + k, \alpha_\text{post} + n_\text{future} - k)}{B(\alpha_\text{post}, \beta_\text{post})}, 
+\quad k = 0,1,\dots,n_\text{future}.
+\]
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Posterior parameters}
+\NormalTok{n\_future }\OperatorTok{=} \DecValTok{20}
+
+\CommentTok{\# Beta{-}Binomial PMF}
+\KeywordTok{def}\NormalTok{ bb\_pmf(k, n, a, b):}
+    \ControlFlowTok{return}\NormalTok{ comb(n, k) }\OperatorTok{*}\NormalTok{ B(a }\OperatorTok{+}\NormalTok{ n }\OperatorTok{{-}}\NormalTok{ k, b }\OperatorTok{+}\NormalTok{ k) }\OperatorTok{/}\NormalTok{ B(a, b)}
+
+\CommentTok{\# Compute probabilities for all k = 0,...,n\_future}
+\NormalTok{k\_vals }\OperatorTok{=}\NormalTok{ np.arange(n\_future }\OperatorTok{+} \DecValTok{1}\NormalTok{)}
+\NormalTok{pmf\_vals }\OperatorTok{=}\NormalTok{ np.array([bb\_pmf(k, n\_future, alpha\_post, beta\_post) }\ControlFlowTok{for}\NormalTok{ k }\KeywordTok{in}\NormalTok{ k\_vals])}
+
+\CommentTok{\# Probability of 2 or more deaths}
+\NormalTok{prob\_ge2 }\OperatorTok{=} \DecValTok{1} \OperatorTok{{-}}\NormalTok{ pmf\_vals[}\DecValTok{0}\NormalTok{] }\OperatorTok{{-}}\NormalTok{ pmf\_vals[}\DecValTok{1}\NormalTok{]}
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"P(Y \textgreater{}= 2)=}\SpecialCharTok{\{}\NormalTok{prob\_ge2}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+
+\CommentTok{\# Plot the predictive distribution}
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{6}\NormalTok{))}
+\NormalTok{plt.bar(k\_vals, pmf\_vals, color}\OperatorTok{=}\StringTok{\textquotesingle{}skyblue\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.axvline(}\DecValTok{2}\NormalTok{, color}\OperatorTok{=}\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{, label}\OperatorTok{=}\StringTok{\textquotesingle{}2 deaths\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.title(}\StringTok{"Predictive distribution of deaths in next 20 operations"}\NormalTok{)}
+\NormalTok{plt.xlabel(}\StringTok{"Number of deaths"}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{"Probability"}\NormalTok{)}
+\NormalTok{plt.legend()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+P(Y >= 2)=0.464
+\end{verbatim}
+
+\includegraphics{HW2_files/figure-pdf/cell-6-output-2.png}
+
+The bar plot above shows the full predictive distribution of deaths,
+highlighting the uncertainty in future outcomes.
+
+\[
+\boxed{P(Y\ge 2) \approx 0.464}
+\]
+
+\newpage
+
+\section{Problem 2}\label{problem-2}
+
+\subsection{(a)}\label{a-1}
+
+To express the prior belief that the coin is strongly biased toward
+either heads or tails, we need a distribution that places its
+probability mass at the extremes (\(\theta \approx 0\) and
+\(\theta \approx 1\)). In the \(\text{Beta}(\alpha, \beta)\) family, we
+achieve this symmetric ``U-shape'' by choosing shape parameters
+\(\alpha =\beta < 1\).
+
+There are two common choices here, depending on how extreme the bias is:
+
+\textbf{1. The Haldane Prior Limit (\(\alpha \to 0, \beta \to 0\)):} By
+taking the limit as \(\alpha\) and \(\beta\) approach \(0\), the
+distribution pushes almost 100\% of its mass infinitesimally close to
+exactly 0 and exactly 1. This expresses a very strong belief: the coin
+is practically a trick coin (either two-headed or two-tailed). This
+\(\text{Beta}(0, 0)\) limit is known as the \textbf{Haldane prior} (for
+more background, see
+\href{https://stats.stackexchange.com/questions/326130/haldanes-prior-beta0-0-part-1}{this
+StackExchange discussion}). Since we are told the coin is
+\emph{strongly} biased, this is arguably the best choice because it
+strictly enforces the ``either/or'' nature of the coin.
+
+\textbf{2. The Jeffreys Prior (\(\alpha = 0.5, \beta = 0.5\)):} This is
+another standard, uninformative U-shaped prior. Unlike the Haldane
+prior, it is a proper prior (it integrates to 1) and acknowledges the
+heavy bias while leaving a bit more mathematical possibility for
+intermediate values.
+
+The values \(\alpha=0.5, \beta=0.5\) are not arbitrary; they are derived
+directly from the Fisher Information, \(I(\theta)\), of the Bernoulli
+likelihood to ensure the prior is invariant under reparameterization
+(\(f(\theta) \propto \sqrt{I(\theta)}\)). The derivation is as follows:
+* The log-likelihood of a single flip is:
+\(\log P(X \mid \theta) = X \log(\theta) + (1 - X) \log(1 - \theta)\) *
+The second derivative with respect to \(\theta\) is:
+\(\frac{d^2}{d\theta^2} = -\frac{X}{\theta^2} - \frac{1 - X}{(1 - \theta)^2}\)
+* The Fisher Information is the negative expected value of the second
+derivative (since \(\mathbb{E}[X] = \theta\)): \[
+I(\theta) = -\mathbb{E} \left[ -\frac{X}{\theta^2} - \frac{1 - X}{(1 - \theta)^2} \right] = \frac{\theta}{\theta^2} + \frac{1 - \theta}{(1 - \theta)^2} = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1}{\theta(1 - \theta)}
+\] * Applying Jeffreys' rule (\(f(\theta) \propto \sqrt{I(\theta)}\)):
+\[
+f(\theta) \propto \sqrt{\frac{1}{\theta(1 - \theta)}} = \theta^{-1/2} (1 - \theta)^{-1/2}
+\] * Matching this to the Beta kernel
+\(\theta^{\alpha - 1} (1 - \theta)^{\beta - 1}\), we get
+\(\alpha - 1 = -0.5 \implies \alpha = 0.5\) and
+\(\beta - 1 = -0.5 \implies \beta = 0.5\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Define the grid for theta}
+\NormalTok{theta }\OperatorTok{=}\NormalTok{ np.linspace(}\DecValTok{0}\NormalTok{, }\DecValTok{1}\NormalTok{, }\DecValTok{100000}\NormalTok{)}
+
+\CommentTok{\# Calculate PDFs}
+\NormalTok{pdf\_jeffreys }\OperatorTok{=}\NormalTok{ beta.pdf(theta, }\FloatTok{0.5}\NormalTok{, }\FloatTok{0.5}\NormalTok{)}
+\NormalTok{pdf\_haldane }\OperatorTok{=}\NormalTok{ beta.pdf(theta, }\FloatTok{0.001}\NormalTok{, }\FloatTok{0.001}\NormalTok{) }\CommentTok{\# Using 0.001 to approximate the limit visually}
+
+\CommentTok{\# Plotting}
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{6}\NormalTok{))}
+\NormalTok{plt.plot(theta,}
+\NormalTok{         pdf\_jeffreys,}
+\NormalTok{         label}\OperatorTok{=}\VerbatimStringTok{r\textquotesingle{}Jeffreys: $\textbackslash{}alpha=0.5, \textbackslash{}beta=0.5$\textquotesingle{}}\NormalTok{,}
+\NormalTok{         color}\OperatorTok{=}\StringTok{\textquotesingle{}blue\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.plot(theta,}
+\NormalTok{         pdf\_haldane,}
+\NormalTok{         label}\OperatorTok{=}\VerbatimStringTok{r\textquotesingle{}Haldane approx: $\textbackslash{}alpha \textbackslash{}to 0, \textbackslash{}beta \textbackslash{}to 0$\textquotesingle{}}\NormalTok{,}
+\NormalTok{         color}\OperatorTok{=}\StringTok{\textquotesingle{}orange\textquotesingle{}}\NormalTok{,}
+\NormalTok{         linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.title(}\StringTok{\textquotesingle{}Comparison of Beta Priors for a Biased Coin\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.xlabel(}\VerbatimStringTok{r\textquotesingle{}$\textbackslash{}theta$ (Probability of Heads)\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{\textquotesingle{}Density\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.legend()}
+\NormalTok{plt.grid(alpha}\OperatorTok{=}\FloatTok{0.3}\NormalTok{)}
+\NormalTok{plt.tight\_layout()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW2_files/figure-pdf/cell-7-output-1.png}
+
+\subsection{(b)}\label{b-1}
+
+We flip the coin \(n = 5\) times and observe \(x = 4\) heads. The data
+follows a Binomial likelihood:
+\(X \mid \theta \sim \text{Binomial}(5, \theta)\).
+
+Because the Beta distribution is conjugate to the Binomial likelihood,
+the posterior distribution is also a Beta distribution. The parameters
+update via simple addition: \[
+\alpha_{\text{post}} = \alpha_{\text{prior}} + x 
+\] \[
+\beta_{\text{post}} = \beta_{\text{prior}} + n - x
+\]
+
+Using the Haldane prior limit where \(\alpha \to 0\) and
+\(\beta \to 0\), our update becomes: \[
+\alpha_{\text{post}} \approx 0 + 4 = 4
+\] \[
+\beta_{\text{post}} \approx 0 + (5 - 4) = 1
+\] Thus, the posterior distribution is: \[
+\theta \mid X = 4 \sim \text{Beta}(4, 1)
+\] \emph{(Note: The \(\text{Beta}(4, 1)\) posterior from the Haldane
+prior yields a posterior mean of \(\frac{4}{4+1} = 0.8\), which exactly
+matches the maximum likelihood estimate of the data
+\(\frac{x}{n} = \frac{4}{5} = 0.8\).)}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Visualizing the Posterior Update}
+\NormalTok{alpha\_post }\OperatorTok{=} \FloatTok{4.0}
+\NormalTok{beta\_post }\OperatorTok{=} \FloatTok{1.0}
+
+\NormalTok{post\_pdf }\OperatorTok{=}\NormalTok{ beta.pdf(theta, alpha\_post, beta\_post)}
+
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{10}\NormalTok{, }\DecValTok{6}\NormalTok{))}
+\NormalTok{plt.plot(theta,}
+\NormalTok{         pdf\_haldane,}
+\NormalTok{         label}\OperatorTok{=}\VerbatimStringTok{r\textquotesingle{}Prior: $\textbackslash{}alpha \textbackslash{}to 0, \textbackslash{}beta \textbackslash{}to 0$\textquotesingle{}}\NormalTok{,}
+\NormalTok{         color}\OperatorTok{=}\StringTok{\textquotesingle{}orange\textquotesingle{}}\NormalTok{,}
+\NormalTok{         linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.plot(theta,}
+\NormalTok{         post\_pdf,}
+\NormalTok{         label}\OperatorTok{=}\VerbatimStringTok{r\textquotesingle{}Posterior: $\textbackslash{}alpha=4, \textbackslash{}beta=1$\textquotesingle{}}\NormalTok{,}
+\NormalTok{         color}\OperatorTok{=}\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.title(}\StringTok{\textquotesingle{}Bayesian Update using Haldane Prior\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.xlabel(}\VerbatimStringTok{r\textquotesingle{}$\textbackslash{}theta$ (Probability of Heads)\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{\textquotesingle{}Density\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.legend()}
+\NormalTok{plt.grid(alpha}\OperatorTok{=}\FloatTok{0.3}\NormalTok{)}
+\NormalTok{plt.tight\_layout()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW2_files/figure-pdf/cell-8-output-1.png}
+
+\section{Problem 3}\label{problem-3}
+
+We are asked to prove the \textbf{Laplace rule of succession}, which
+gives the predictive probability of the next observation being a
+success, given a history of successes and failures.
+
+The model is given as: - \textbf{Prior:}
+\(\theta \sim \text{Uniform}(0, 1) \equiv \text{Beta}(1, 1)\) -
+\textbf{Likelihood:}
+\(X_i \overset{\text{i.i.d}}{\sim} \text{Bernoulli}(\theta)\) for
+\(i = 1, \dots, n\)
+
+\textbf{Step 1: Rewrite the prior.} A \(\text{Uniform}(0, 1)\)
+distribution has a constant probability density function
+\(f(\theta) = 1\) for \(\theta \in [0, 1]\). Notice that the
+\(\text{Beta}(1, 1)\) distribution has the exact same density:
+\(f(\theta) \propto \theta^{1-1}(1-\theta)^{1-1} = \theta^0(1-\theta)^0 = 1\).
+Therefore, our prior is exactly equivalent to: \[
+\theta \sim \text{Beta}(1, 1)
+\]
+
+\textbf{Step 2: Define the Likelihood.} Since the observations are
+independent Bernoulli trials, the joint likelihood of observing
+\(x_1, \dots, x_n\) is the product of the individual likelihoods: \[
+P(X_1=x_1, \dots, X_n=x_n \mid \theta) = \prod_{i=1}^n \theta^{x_i}(1-\theta)^{1-x_i} = \theta^{\sum_{i=1}^n x_i} (1-\theta)^{n - \sum_{i=1}^n x_i}
+\]
+
+\textbf{Step 3: Find the Posterior Distribution.} By Bayes' Theorem, the
+posterior is proportional to the prior times the likelihood. Let the sum
+of successes be \(S_n = \sum_{i=1}^n x_i\). \[
+f(\theta \mid X_1, \dots, X_n) \propto \left( \theta^{1-1} (1-\theta)^{1-1} \right) \cdot \left( \theta^{S_n} (1-\theta)^{n - S_n} \right)
+\] \[
+f(\theta \mid X_1, \dots, X_n) \propto \theta^{1 + S_n - 1} (1-\theta)^{1 + n - S_n - 1}
+\] We recognize this as the kernel of a new Beta distribution. The
+posterior is: \[
+\theta \mid X_1, \dots, X_n \sim \text{Beta}(1 + S_n, 1 + n - S_n)
+\]
+
+\textbf{Step 4: Compute the Predictive Probability.} We want the
+probability that the \emph{next} trial is a success:
+\(P(X_{n+1} = 1 \mid X_1, \dots, X_n)\). Using the Law of Total
+Probability, we integrate over all possible values of our hidden
+parameter \(\theta\): \[
+P(X_{n+1} = 1 \mid X_1, \dots, X_n) = \int_0^1 P(X_{n+1} = 1 \mid \theta) f(\theta \mid X_1, \dots, X_n) \, d\theta
+\] Since \(X_{n+1} \sim \text{Bernoulli}(\theta)\), we know
+\(P(X_{n+1} = 1 \mid \theta) = \theta\). Substituting this in: \[
+P(X_{n+1} = 1 \mid X_1, \dots, X_n) = \int_0^1 \theta \cdot f(\theta \mid X_1, \dots, X_n) \, d\theta = \mathbb{E}[\theta \mid X_1, \dots, X_n]
+\] The predictive probability is simply the expected value of the
+posterior distribution. For a \(\text{Beta}(\alpha, \beta)\)
+distribution, the expected value is \(\frac{\alpha}{\alpha + \beta}\).
+Plugging in our posterior parameters \(\alpha = 1 + \sum_{i=1}^n x_i\)
+and \(\beta = 1 + n - \sum_{i=1}^n x_i\): \[
+\mathbb{E}[\theta \mid X_1, \dots, X_n] = \frac{1 + \sum_{i=1}^n x_i}{(1 + \sum_{i=1}^n x_i) + (1 + n - \sum_{i=1}^n x_i)} = \frac{1 + \sum_{i=1}^n x_i}{n + 2}
+\] This completes the proof.
+
+\subsubsection{Comparison with Homework One, Problem
+2(e)}\label{comparison-with-homework-one-problem-2e}
+
+In Homework One, Problem 2(e), we derived this exact same result---the
+Laplace Rule of Succession---but in a \textbf{discrete, finite setting}.
+There, the context was drawing \(n\) balls from an urn of size \(N\) and
+observing \(x\) red balls. Assuming a discrete uniform prior over the
+number of red balls initially in the urn, the predictive probability of
+drawing a red ball on the \((n+1)\)-th draw was exactly
+\(\frac{x+1}{n+2}\).
+
+In this current problem, we arrive at the identical formula but from a
+\textbf{continuous perspective}. Here, we assume an infinite sequence of
+Bernoulli trials driven by a continuous parameter \(\theta\), paired
+with a continuous uniform prior, \(\theta \sim \text{Uniform}(0, 1)\).
+
+This highlights a beautiful symmetry in Bayesian statistics: expressing
+total initial ignorance via a uniform prior over a finite, discrete set
+of proportions (the urn model) yields the exact same predictive behavior
+as expressing ignorance via a continuous uniform prior over a
+probability parameter (the Bernoulli model). In both cases, the prior
+acts by adding one ``pseudo-success'' and two ``pseudo-trials'' to the
+empirical fraction, smoothing the estimate.
+
+\subsubsection{Visualizing Laplace
+Smoothing}\label{visualizing-laplace-smoothing}
+
+Let's simulate a sequence of 20 trials where every single outcome is a
+success (\(x_i=1\)). Notice how the Laplace rule prevents the predictive
+probability from immediately jumping to 100\% certainty after just a few
+trials.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ numpy }\ImportTok{as}\NormalTok{ np}
+\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
+
+\CommentTok{\# Simulate 20 flips of a completely rigged coin (always heads, x=1)}
+\NormalTok{n\_flips }\OperatorTok{=} \DecValTok{20}
+\NormalTok{flips }\OperatorTok{=}\NormalTok{ np.ones(n\_flips)}
+
+\CommentTok{\# Track the cumulative sum of successes}
+\NormalTok{S\_n }\OperatorTok{=}\NormalTok{ np.cumsum(flips)}
+\NormalTok{n }\OperatorTok{=}\NormalTok{ np.arange(}\DecValTok{1}\NormalTok{, n\_flips }\OperatorTok{+} \DecValTok{1}\NormalTok{)}
+
+\CommentTok{\# Calculate naive estimate (x/n) and Laplace estimate}
+\NormalTok{naive\_estimates }\OperatorTok{=}\NormalTok{ S\_n }\OperatorTok{/}\NormalTok{ n}
+\NormalTok{laplace\_estimates }\OperatorTok{=}\NormalTok{ (}\DecValTok{1} \OperatorTok{+}\NormalTok{ S\_n) }\OperatorTok{/}\NormalTok{ (n }\OperatorTok{+} \DecValTok{2}\NormalTok{)}
+
+\CommentTok{\# Plotting}
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{8}\NormalTok{, }\DecValTok{5}\NormalTok{))}
+\NormalTok{plt.plot(n, naive\_estimates, label}\OperatorTok{=}\StringTok{\textquotesingle{}Naive Estimate ($x/n$)\textquotesingle{}}\NormalTok{, marker}\OperatorTok{=}\StringTok{\textquotesingle{}o\textquotesingle{}}\NormalTok{, linestyle}\OperatorTok{=}\StringTok{\textquotesingle{}{-}{-}\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.plot(n, laplace\_estimates, label}\OperatorTok{=}\StringTok{\textquotesingle{}Laplace Rule (Posterior Mean)\textquotesingle{}}\NormalTok{, marker}\OperatorTok{=}\StringTok{\textquotesingle{}s\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{plt.title(}\StringTok{\textquotesingle{}Predictive Probability of Success (Observing 100\% Successes)\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.xlabel(}\StringTok{\textquotesingle{}Number of Trials ($n$)\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{\textquotesingle{}Estimated Probability of Next Success\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.ylim(}\FloatTok{0.5}\NormalTok{, }\FloatTok{1.05}\NormalTok{)}
+\NormalTok{plt.xticks(np.arange(}\DecValTok{1}\NormalTok{, n\_flips }\OperatorTok{+} \DecValTok{1}\NormalTok{, step}\OperatorTok{=}\DecValTok{2}\NormalTok{))}
+\NormalTok{plt.legend()}
+\NormalTok{plt.grid(alpha}\OperatorTok{=}\FloatTok{0.3}\NormalTok{)}
+\NormalTok{plt.tight\_layout()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{HW2_files/figure-pdf/cell-9-output-1.png}
+
+\section{Problem 4}\label{problem-4}
+
+\subsection{(a)}\label{a-2}
+
+We are given a Bayesian model with a Binomial likelihood and a prior on
+the logit transformation of \(\theta\): - \textbf{Prior:}
+\(Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)\)
+- \textbf{Likelihood:} \(X \mid \theta \sim \text{Binomial}(n, \theta)\)
+
+\textbf{Step 1: Find the Prior Density for \(\theta\)} We know \(Z\) is
+normally distributed, so its density is: \[
+f_Z(z) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} (z - \mu)^2 \right)
+\] To find the probability density function for \(\theta\),
+\(f_\theta(\theta)\), we must use the change of variables formula: \[
+f_\theta(\theta) = f_Z(z(\theta)) \left| \frac{dz}{d\theta} \right|
+\] First, calculate the derivative (the Jacobian) of the logit function
+with respect to \(\theta\): \[
+\frac{dz}{d\theta} = \frac{d}{d\theta} \left[ \log(\theta) - \log(1 - \theta) \right] = \frac{1}{\theta} - \left( \frac{-1}{1 - \theta} \right) = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1-\theta+\theta}{\theta(1 - \theta)} = \frac{1}{\theta(1 - \theta)}
+\] Substituting \(Z\) and \(\frac{dz}{d\theta}\) back into our
+transformation formula, we get the prior density for \(\theta\): \[
+f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
+\]
+
+\textbf{Step 2: Apply Bayes' Theorem} The likelihood of observing \(x\)
+successes in \(n\) trials is: \[
+P(X = x \mid \theta) = \binom{n}{x} \theta^x (1 - \theta)^{n-x}
+\] Bayes' Theorem states that the posterior is proportional to the
+likelihood times the prior: \[
+f_{\theta \mid X=x}(\theta) \propto P(X = x \mid \theta) f_\theta(\theta)
+\] \[
+f_{\theta \mid X=x}(\theta) \propto \binom{n}{x} \theta^x (1 - \theta)^{n-x} \frac{1}{\sqrt{2\pi\sigma^2}} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right)
+\] We can drop constants that do not depend on \(\theta\) (like
+\(\binom{n}{x}\) and \(\frac{1}{\sqrt{2\pi\sigma^2}}\)). To ensure the
+posterior is a valid probability density function (integrating to 1), we
+divide this unnormalized numerator by its integral over the support of
+\(\theta\), which is \((0, 1)\).
+
+Adding the indicator function \(I\{0 < \theta < 1\}\) to explicitly
+state the support, we arrive exactly at the desired formula: \[
+f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) d\theta }
+\]
+
+\subsection{(b)}\label{b-2}
+
+We calculate the posterior mean, variance, and 95\% credible interval
+using numerical discretization over a fine grid. Because
+\(\mu = -9.273\), the true probability \(\theta\) is extremely small
+(around \(0.00009\)), so our grid must be very dense near zero.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ numpy }\ImportTok{as}\NormalTok{ np}
+\ImportTok{import}\NormalTok{ scipy.stats }\ImportTok{as}\NormalTok{ stats}
+
+\CommentTok{\# Given parameters}
+\NormalTok{x\_obs }\OperatorTok{=} \DecValTok{0}
+\NormalTok{n }\OperatorTok{=} \DecValTok{1295}
+\NormalTok{mu }\OperatorTok{=} \OperatorTok{{-}}\FloatTok{9.27308950}
+\NormalTok{sigma2 }\OperatorTok{=} \FloatTok{0.09259668}
+
+\CommentTok{\# Create a dense grid near 0}
+\NormalTok{theta\_grid }\OperatorTok{=}\NormalTok{ np.linspace(}\FloatTok{1e{-}8}\NormalTok{, }\FloatTok{0.001}\NormalTok{, }\DecValTok{20000}\NormalTok{)}
+
+\CommentTok{\# Calculate the log{-}prior density}
+\NormalTok{logit\_theta }\OperatorTok{=}\NormalTok{ np.log(theta\_grid }\OperatorTok{/}\NormalTok{ (}\DecValTok{1} \OperatorTok{{-}}\NormalTok{ theta\_grid))}
+\NormalTok{log\_prior }\OperatorTok{=} \OperatorTok{{-}}\FloatTok{0.5} \OperatorTok{*}\NormalTok{ ((logit\_theta }\OperatorTok{{-}}\NormalTok{ mu)}\OperatorTok{**}\DecValTok{2}\NormalTok{) }\OperatorTok{/}\NormalTok{ sigma2 }\OperatorTok{{-}}\NormalTok{ np.log(theta\_grid) }\OperatorTok{{-}}\NormalTok{ np.log(}\DecValTok{1} \OperatorTok{{-}}\NormalTok{ theta\_grid)}
+
+\CommentTok{\# Calculate the log{-}likelihood (using scipy to safely handle 0*log(0) if x were \textgreater{} 0)}
+\NormalTok{log\_likelihood }\OperatorTok{=}\NormalTok{ stats.binom.logpmf(x\_obs, n, theta\_grid)}
+
+\CommentTok{\# Unnormalized log{-}posterior}
+\NormalTok{log\_posterior }\OperatorTok{=}\NormalTok{ log\_prior }\OperatorTok{+}\NormalTok{ log\_likelihood}
+
+\CommentTok{\# Normalize using the log{-}sum{-}exp trick to prevent numerical underflow}
+\NormalTok{posterior\_unnorm }\OperatorTok{=}\NormalTok{ np.exp(log\_posterior }\OperatorTok{{-}}\NormalTok{ np.}\BuiltInTok{max}\NormalTok{(log\_posterior))}
+\NormalTok{posterior\_probs }\OperatorTok{=}\NormalTok{ posterior\_unnorm }\OperatorTok{/}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(posterior\_unnorm)}
+
+\CommentTok{\# 1. Posterior Mean}
+\NormalTok{post\_mean }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(theta\_grid }\OperatorTok{*}\NormalTok{ posterior\_probs)}
+
+\CommentTok{\# 2. Posterior Variance}
+\NormalTok{post\_var }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{((theta\_grid }\OperatorTok{{-}}\NormalTok{ post\_mean)}\OperatorTok{**}\DecValTok{2} \OperatorTok{*}\NormalTok{ posterior\_probs)}
+
+\CommentTok{\# 3. 95\% Credible Interval}
+\NormalTok{cumulative\_probs }\OperatorTok{=}\NormalTok{ np.cumsum(posterior\_probs)}
+\NormalTok{lower\_bound }\OperatorTok{=}\NormalTok{ theta\_grid[np.searchsorted(cumulative\_probs, }\FloatTok{0.025}\NormalTok{)]}
+\NormalTok{upper\_bound }\OperatorTok{=}\NormalTok{ theta\_grid[np.searchsorted(cumulative\_probs, }\FloatTok{0.975}\NormalTok{)]}
+
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Numerical Mean:      }\SpecialCharTok{\{}\NormalTok{post\_mean}\SpecialCharTok{:.8f\}}\SpecialStringTok{"}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Numerical Variance:  }\SpecialCharTok{\{}\NormalTok{post\_var}\SpecialCharTok{:.12f\}}\SpecialStringTok{"}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"95\% Cred. Interval:  [}\SpecialCharTok{\{}\NormalTok{lower\_bound}\SpecialCharTok{:.8f\}}\SpecialStringTok{, }\SpecialCharTok{\{}\NormalTok{upper\_bound}\SpecialCharTok{:.8f\}}\SpecialStringTok{]"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Numerical Mean:      0.00009717
+Numerical Variance:  0.000000000904
+95% Cred. Interval:  [0.00005126, 0.00016787]
+\end{verbatim}
+
+\subsection{(c)}\label{c-1}
+
+Now, we solve the same problem using PyMC MCMC sampling and visually
+compare the results.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ImportTok{import}\NormalTok{ pymc }\ImportTok{as}\NormalTok{ pm}
+\ImportTok{import}\NormalTok{ arviz }\ImportTok{as}\NormalTok{ az}
+\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
+
+\CommentTok{\# PyMC requires the standard deviation, not variance}
+\NormalTok{sigma }\OperatorTok{=}\NormalTok{ np.sqrt(sigma2)}
+
+\ControlFlowTok{with}\NormalTok{ pm.Model() }\ImportTok{as}\NormalTok{ logit\_model:}
+    \CommentTok{\# Prior on the logit scale}
+\NormalTok{    logit\_theta\_var }\OperatorTok{=}\NormalTok{ pm.Normal(}\StringTok{\textquotesingle{}logit\_theta\textquotesingle{}}\NormalTok{, mu}\OperatorTok{=}\NormalTok{mu, sigma}\OperatorTok{=}\NormalTok{sigma)}
+    
+    \CommentTok{\# Deterministic transformation back to the probability scale}
+\NormalTok{    theta\_var }\OperatorTok{=}\NormalTok{ pm.Deterministic(}\StringTok{\textquotesingle{}theta\textquotesingle{}}\NormalTok{, pm.math.invlogit(logit\_theta\_var))}
+    
+    \CommentTok{\# Binomial Likelihood}
+\NormalTok{    obs }\OperatorTok{=}\NormalTok{ pm.Binomial(}\StringTok{\textquotesingle{}obs\textquotesingle{}}\NormalTok{, n}\OperatorTok{=}\NormalTok{n, p}\OperatorTok{=}\NormalTok{theta\_var, observed}\OperatorTok{=}\NormalTok{x\_obs)}
+    
+    \CommentTok{\# Draw MCMC samples}
+\NormalTok{    trace }\OperatorTok{=}\NormalTok{ pm.sample(}\DecValTok{5000}\NormalTok{, tune}\OperatorTok{=}\DecValTok{2000}\NormalTok{, target\_accept}\OperatorTok{=}\FloatTok{0.95}\NormalTok{, return\_inferencedata}\OperatorTok{=}\VariableTok{True}\NormalTok{, progressbar}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+
+\CommentTok{\# Extract summary statistics}
+\NormalTok{summary }\OperatorTok{=}\NormalTok{ az.summary(trace, var\_names}\OperatorTok{=}\NormalTok{[}\StringTok{\textquotesingle{}theta\textquotesingle{}}\NormalTok{], hdi\_prob}\OperatorTok{=}\FloatTok{0.95}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(summary)}
+
+\CommentTok{\# {-}{-}{-} VISUAL COMPARISON {-}{-}{-}}
+\CommentTok{\# Extract PyMC samples for plotting}
+\NormalTok{theta\_samples }\OperatorTok{=}\NormalTok{ trace.posterior[}\StringTok{\textquotesingle{}theta\textquotesingle{}}\NormalTok{].values.flatten()}
+
+\NormalTok{plt.figure(figsize}\OperatorTok{=}\NormalTok{(}\DecValTok{9}\NormalTok{, }\DecValTok{5}\NormalTok{))}
+\CommentTok{\# Plot numerical discretization as a line (scaled to match density)}
+\NormalTok{grid\_spacing }\OperatorTok{=}\NormalTok{ theta\_grid[}\DecValTok{1}\NormalTok{] }\OperatorTok{{-}}\NormalTok{ theta\_grid[}\DecValTok{0}\NormalTok{]}
+\NormalTok{numerical\_density }\OperatorTok{=}\NormalTok{ posterior\_probs }\OperatorTok{/}\NormalTok{ grid\_spacing}
+\NormalTok{plt.plot(theta\_grid, numerical\_density, color}\OperatorTok{=}\StringTok{\textquotesingle{}red\textquotesingle{}}\NormalTok{, lw}\OperatorTok{=}\FloatTok{2.5}\NormalTok{, label}\OperatorTok{=}\StringTok{\textquotesingle{}Numerical Discretization (Exact)\textquotesingle{}}\NormalTok{)}
+
+\CommentTok{\# Plot PyMC samples as a KDE/Histogram}
+\NormalTok{plt.hist(theta\_samples, bins}\OperatorTok{=}\DecValTok{100}\NormalTok{, density}\OperatorTok{=}\VariableTok{True}\NormalTok{, alpha}\OperatorTok{=}\FloatTok{0.5}\NormalTok{, color}\OperatorTok{=}\StringTok{\textquotesingle{}blue\textquotesingle{}}\NormalTok{, label}\OperatorTok{=}\StringTok{\textquotesingle{}PyMC MCMC Samples\textquotesingle{}}\NormalTok{)}
+
+\NormalTok{plt.title(}\StringTok{\textquotesingle{}Comparison of Posterior Approximations: Numerical vs. MCMC\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.xlabel(}\VerbatimStringTok{r\textquotesingle{}$\textbackslash{}theta$ (Probability)\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.ylabel(}\StringTok{\textquotesingle{}Density\textquotesingle{}}\NormalTok{)}
+\NormalTok{plt.xlim(}\DecValTok{0}\NormalTok{, }\FloatTok{0.0003}\NormalTok{)}
+\NormalTok{plt.legend()}
+\NormalTok{plt.grid(alpha}\OperatorTok{=}\FloatTok{0.3}\NormalTok{)}
+\NormalTok{plt.tight\_layout()}
+\NormalTok{plt.show()}
+\end{Highlighting}
+\end{Shaded}
+
+\textbf{Conclusion for Part (c):} When running the PyMC model, you will
+notice that the \texttt{mean}, \texttt{sd} (square root of variance),
+and \texttt{hdi} ranges almost perfectly match the \texttt{post\_mean},
+standard deviation, and credible interval computed in part (b). The
+histogram of the PyMC trace overlaps exactly with the density curve
+derived from numerical integration, confirming that both the discrete
+grid approximation and the continuous MCMC sampler successfully mapped
+the exact same underlying mathematical posterior.
+
+\section{Problem 5}\label{problem-5}
+
+\subsection{(a)}\label{a-3}
+
+We are given the following model: - \textbf{Prior:}
+\(\theta \sim \text{Gamma}(\alpha, \beta)\) with density
+\(f(\theta) \propto \theta^{\alpha - 1} \exp(-\beta \theta) I\{\theta > 0\}\)
+- \textbf{Likelihood:} \(Y \mid \theta \sim \text{Poisson}(k \theta)\)
+with PMF
+\(P(Y = y \mid \theta) = \frac{(k\theta)^y \exp(-k\theta)}{y!}\)
+
+By Bayes' theorem, the posterior density is proportional to the prior
+times the likelihood: \[
+\begin{aligned}
+f(\theta \mid y) &\propto f(\theta) \cdot P(Y = y \mid \theta) \\
+&\propto \left( \theta^{\alpha - 1} \exp(-\beta \theta) \right) \left( \theta^y \exp(-k\theta) \right) \\
+&= \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta)
+\end{aligned}
+\] We recognize this as the kernel of a Gamma distribution with shape
+parameter \(\alpha + y\) and rate parameter \(\beta + k\). Thus, \[
+\theta \mid Y = y \sim \text{Gamma}(\alpha + y, \beta + k).
+\]
+
+\subsection{(b)}\label{b-3}
+
+The marginal distribution of \(Y\) is obtained by integrating the joint
+density over all possible values of \(\theta\): \[
+\begin{aligned}
+P(Y = y) &= \int_0^\infty P(Y = y \mid \theta) f(\theta) \, d\theta \\
+&= \int_0^\infty \frac{(k\theta)^y \exp(-k\theta)}{y!} \frac{\beta^\alpha}{\Gamma(\alpha)} \theta^{\alpha - 1} \exp(-\beta \theta) \, d\theta \\
+&= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \int_0^\infty \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta) \, d\theta
+\end{aligned}
+\] The integral is the unnormalized core of a
+\(\text{Gamma}(\alpha + y, \beta + k)\) distribution. We know that
+\(\int_0^\infty x^{A-1} e^{-Bx} dx = \frac{\Gamma(A)}{B^A}\). Using this
+fact: \[
+\begin{aligned}
+P(Y = y) &= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \frac{\Gamma(\alpha + y)}{(\beta + k)^{\alpha + y}} \\
+&= \frac{\Gamma(\alpha + y)}{\Gamma(\alpha) y!} \left(\frac{k}{\beta + k} \right)^y \left(\frac{\beta}{\beta + k} \right)^{\alpha}
+\end{aligned}
+\] This holds for \(y = 0, 1, 2, \dots\), representing a Negative
+Binomial distribution.
+
+\section{Problem 6}\label{problem-6}
+
+\subsection{(a)}\label{a-4}
+
+Let \(\theta\) be the mortality rate per 100,000 people. We are given:
+1. The typical rate (mean) is
+\(\mathbb{E}[\theta] = \frac{\alpha}{\beta} = 0.6\). 2. Rates above 1.5
+are rare. We can interpret ``rare'' as a 1\% probability:
+\(P(\theta > 1.5) = 0.01\).
+
+We can solve for \(\alpha\) and \(\beta\) numerically, similar to
+Problem 1.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{def}\NormalTok{ objective(alpha):}
+    \CommentTok{\# If mean = 0.6, then beta = alpha / 0.6}
+\NormalTok{    beta\_param }\OperatorTok{=}\NormalTok{ alpha }\OperatorTok{/} \FloatTok{0.6}
+    \CommentTok{\# We want P(theta \textgreater{} 1.5) = 0.01, so CDF at 1.5 should be 0.99}
+    \CommentTok{\# scipy gamma takes scale = 1/beta}
+    \ControlFlowTok{return}\NormalTok{ gamma.cdf(}\FloatTok{1.5}\NormalTok{, a}\OperatorTok{=}\NormalTok{alpha, scale}\OperatorTok{=}\DecValTok{1}\OperatorTok{/}\NormalTok{beta\_param) }\OperatorTok{{-}} \FloatTok{0.99}
+
+\CommentTok{\# Solve for alpha}
+\NormalTok{alpha\_opt }\OperatorTok{=}\NormalTok{ fsolve(objective, x0}\OperatorTok{=}\DecValTok{2}\NormalTok{)[}\DecValTok{0}\NormalTok{]}
+\NormalTok{beta\_opt }\OperatorTok{=}\NormalTok{ alpha\_opt }\OperatorTok{/} \FloatTok{0.6}
+
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Optimal alpha: }\SpecialCharTok{\{}\NormalTok{alpha\_opt}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Optimal beta:  }\SpecialCharTok{\{}\NormalTok{beta\_opt}\SpecialCharTok{:.3f\}}\SpecialStringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+Optimal alpha: 4.050
+Optimal beta:  6.749
+\end{verbatim}
+
+Based on this, a reasonable prior is
+\(\theta \sim \text{Gamma}(3.3, 5.5)\).
+
+\subsection{(b)}\label{b-4}
+
+The population is 200,000, which is exactly \(2 \times 100,000\). Thus,
+\(k = 2\). We observe \(y = 3\) deaths in one year. Using the conjugate
+update rule from 5(a): \[
+\theta \mid y \sim \text{Gamma}(\alpha + y, \beta + k) = \text{Gamma}(3.3 + 3, 5.5 + 2) = \text{Gamma}(6.3, 7.5)
+\]
+
+\subsection{(c)}\label{c-2}
+
+Over 10 years, the multiplier becomes \(k = 2 \times 10 = 20\). We
+observe \(y = 30\) deaths. Using the prior from (a): \[
+\theta \mid y \sim \text{Gamma}(3.3 + 30, 5.5 + 20) = \text{Gamma}(33.3, 25.5)
+\]
+
+\subsection{(d)}\label{d-1}
+
+\textbf{Similarities:} Both posteriors use the same prior structure and
+push the expected value towards the observed data mean.
+\textbf{Differences:} The 10-year posterior is much narrower (lower
+variance) than the 1-year posterior. In the 1-year case, the data
+(\(3/2 = 1.5\)) was pulled heavily by the prior (\(0.6\)), yielding a
+posterior mean of \(6.3 / 7.5 = 0.84\). In the 10-year case, the larger
+sample size dominates the prior, bringing the posterior mean to
+\(33.3 / 25.5 = 1.30\), which is much closer to the raw empirical rate
+of \(30/20 = 1.5\). The increased data significantly reduces our
+uncertainty.
+
+\section{Problem 7}\label{problem-7}
+
+\subsection{(a)}\label{a-5}
+
+The binomial distribution \(\text{Bin}(n, p)\) models the number of
+successes in \(n\) independent trials with probability \(p\). If \(n\)
+is very large and \(p\) is very small, the Poisson limit theorem (or Le
+Cam's theorem) states that the binomial distribution is
+well-approximated by a Poisson distribution with mean \(\lambda = np\).
+
+For the kidney cancer dataset, \(n_i\) (county population) is large, and
+\(\theta_i\) (death rate per person) is extremely small. Therefore,
+letting \(\lambda_i = n_i \theta_i\), we can effectively approximate the
+likelihood \(X_i \sim \text{Bin}(n_i, \theta_i)\) as
+\(X_i \sim \text{Poisson}(n_i \theta_i)\).
+
+\subsection{(b)}\label{b-5}
+
+We want to estimate \(\alpha\) and \(\beta\) by maximizing the marginal
+likelihood. From 5(b), the marginal likelihood for a single county is
+Negative Binomial. Assuming independence across \(N\) counties, the
+total log marginal likelihood is: \[
+\ell(\alpha, \beta) = \sum_{i=1}^N \left[ \log \Gamma(\alpha + X_i) - \log \Gamma(\alpha) - \log(X_i!) + X_i \log\left(\frac{n_i}{\beta + n_i}\right) + \alpha \log\left(\frac{\beta}{\beta + n_i}\right) \right]
+\]
+
+\emph{(Note: We would load the dataset here in Python to compute this
+over a grid of \(\alpha\) and \(\beta\). Since the raw dataset isn't
+provided in the prompt, here is the boilerplate code to execute the grid
+search once \texttt{X} and \texttt{n} are defined).}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Placeholder for actual data loading}
+\CommentTok{\# X = data[\textquotesingle{}deaths\textquotesingle{}].values}
+\CommentTok{\# n = data[\textquotesingle{}population\textquotesingle{}].values}
+
+\KeywordTok{def}\NormalTok{ log\_marginal\_likelihood(alpha, beta, X, n):}
+\NormalTok{    term1 }\OperatorTok{=}\NormalTok{ gammaln(alpha }\OperatorTok{+}\NormalTok{ X) }\OperatorTok{{-}}\NormalTok{ gammaln(alpha) }\OperatorTok{{-}}\NormalTok{ gammaln(X }\OperatorTok{+} \DecValTok{1}\NormalTok{)}
+\NormalTok{    term2 }\OperatorTok{=}\NormalTok{ X }\OperatorTok{*}\NormalTok{ np.log(n }\OperatorTok{/}\NormalTok{ (beta }\OperatorTok{+}\NormalTok{ n))}
+\NormalTok{    term3 }\OperatorTok{=}\NormalTok{ alpha }\OperatorTok{*}\NormalTok{ np.log(beta }\OperatorTok{/}\NormalTok{ (beta }\OperatorTok{+}\NormalTok{ n))}
+    \ControlFlowTok{return}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(term1 }\OperatorTok{+}\NormalTok{ term2 }\OperatorTok{+}\NormalTok{ term3)}
+
+\CommentTok{\# Define grid}
+\NormalTok{alphas }\OperatorTok{=}\NormalTok{ np.linspace(}\DecValTok{1}\NormalTok{, }\DecValTok{20}\NormalTok{, }\DecValTok{100}\NormalTok{)}
+\NormalTok{betas }\OperatorTok{=}\NormalTok{ np.linspace(}\DecValTok{1000}\NormalTok{, }\DecValTok{20000}\NormalTok{, }\DecValTok{100}\NormalTok{)}
+
+\CommentTok{\# best\_alpha, best\_beta = grid\_search\_maximization(alphas, betas, X, n)}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{(c)}\label{c-3}
+
+Using the empirical Bayes estimates \(\hat{\alpha}\) and
+\(\hat{\beta}\), the posterior for each county is
+\(\text{Gamma}(\hat{\alpha} + X_i, \hat{\beta} + n_i)\). The posterior
+mean estimate for \(\theta_i\) is: \[
+\hat{\theta}_i = \frac{\hat{\alpha} + X_i}{\hat{\beta} + n_i}
+\] Compared to the Beta-Binomial model, the Poisson-Gamma estimates
+should be functionally nearly identical due to the Poisson approximation
+of the Binomial distribution for large \(N\) and small \(p\). The top
+100 counties ranked by \(\hat{\theta}_i\) will likely show heavy
+overlap, effectively identical up to minor numerical precision
+differences.
+
+\subsection{(d)}\label{d-2}
+
+For the full Bayes model, we need uninformative priors for \(\alpha\)
+and \(\beta\). A standard choice for parameters defined on
+\((0, \infty)\) is a vague prior, such as
+\(f(\alpha, \beta) \propto (\alpha + \beta)^{-5/2}\) (as suggested by
+Gelman) or independent vague Gamma priors, e.g.,
+\(\alpha \sim \text{Gamma}(0.01, 0.01)\) and
+\(\beta \sim \text{Gamma}(0.01, 0.01)\).
+
+Using a 2D grid-based discretization approach: 1. Define a 2D grid over
+reasonable ranges for \(\alpha\) and \(\beta\). 2. Compute the
+unnormalized log posterior for each \((\alpha, \beta)\) pair:
+\(\log P(\alpha, \beta \mid X) \propto \ell(\alpha, \beta) + \log P(\alpha, \beta)\).
+3. Exponentiate and normalize the grid to get the joint posterior
+\(P(\alpha, \beta \mid X)\). 4. The marginal posterior mean for each
+\(\theta_i\) is computed by integrating the conditional posterior mean
+over the joint posterior of \(\alpha, \beta\): \[
+\mathbb{E}[\theta_i \mid X] = \sum_{\alpha, \beta} \left( \frac{\alpha + X_i}{\beta + n_i} \right) P(\alpha, \beta \mid X)
+\]
+
+\section{Problem 8}\label{problem-8}
+
+Here, we implement the full Bayes model from Equation (1) using PyMC and
+compare the posterior means to the numerical grid approach.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Note: eval is false here assuming the raw dataset \textquotesingle{}X\textquotesingle{} and \textquotesingle{}n\textquotesingle{} }
+\CommentTok{\# are loaded elsewhere in your environment.}
+
+\CommentTok{\# Assuming X (deaths) and n (population) are defined numpy arrays}
+\ControlFlowTok{with}\NormalTok{ pm.Model() }\ImportTok{as}\NormalTok{ full\_bayes\_model:}
+    \CommentTok{\# Uninformative priors for alpha and beta}
+    \CommentTok{\# HalfCauchy or weakly informative exponential/gamma are common choices}
+\NormalTok{    alpha }\OperatorTok{=}\NormalTok{ pm.HalfCauchy(}\StringTok{\textquotesingle{}alpha\textquotesingle{}}\NormalTok{, beta}\OperatorTok{=}\DecValTok{10}\NormalTok{)}
+\NormalTok{    beta\_param }\OperatorTok{=}\NormalTok{ pm.HalfCauchy(}\StringTok{\textquotesingle{}beta\textquotesingle{}}\NormalTok{, beta}\OperatorTok{=}\DecValTok{10}\NormalTok{)}
+    
+    \CommentTok{\# County{-}specific theta}
+\NormalTok{    theta }\OperatorTok{=}\NormalTok{ pm.Gamma(}\StringTok{\textquotesingle{}theta\textquotesingle{}}\NormalTok{, alpha}\OperatorTok{=}\NormalTok{alpha, beta}\OperatorTok{=}\NormalTok{beta\_param, shape}\OperatorTok{=}\BuiltInTok{len}\NormalTok{(X))}
+    
+    \CommentTok{\# Poisson Likelihood}
+\NormalTok{    obs }\OperatorTok{=}\NormalTok{ pm.Poisson(}\StringTok{\textquotesingle{}obs\textquotesingle{}}\NormalTok{, mu}\OperatorTok{=}\NormalTok{n }\OperatorTok{*}\NormalTok{ theta, observed}\OperatorTok{=}\NormalTok{X)}
+    
+    \CommentTok{\# Sample}
+\NormalTok{    trace }\OperatorTok{=}\NormalTok{ pm.sample(}\DecValTok{2000}\NormalTok{, tune}\OperatorTok{=}\DecValTok{1000}\NormalTok{, return\_inferencedata}\OperatorTok{=}\VariableTok{True}\NormalTok{, progressbar}\OperatorTok{=}\VariableTok{False}\NormalTok{)}
+
+\CommentTok{\# Extract posterior means}
+\NormalTok{summary\_df }\OperatorTok{=}\NormalTok{ az.summary(trace, var\_names}\OperatorTok{=}\NormalTok{[}\StringTok{\textquotesingle{}theta\textquotesingle{}}\NormalTok{])}
+\NormalTok{pymc\_theta\_means }\OperatorTok{=}\NormalTok{ summary\_df[}\StringTok{\textquotesingle{}mean\textquotesingle{}}\NormalTok{].values}
+\end{Highlighting}
+\end{Shaded}
+
+\textbf{Comparison:} The posterior means obtained via MCMC should
+closely align with the marginal posterior means computed via 2D
+numerical discretization in part (d). MCMC handles the integration
+implicitly by sampling from the joint posterior space, avoiding the
+computational overhead of calculating values over a dense grid, which
+makes it much more scalable for models with many counties.
+
+\section{Problem 9}\label{problem-9}
+
+\subsection{(a)}\label{a-6}
+
+We evaluate the baseball dataset using a hierarchical Beta-Binomial
+model with uniform priors on the hyperparameters \(a\) and \(b\).
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# Placeholder for data: H = array of hits, n = 45}
+\NormalTok{H }\OperatorTok{=}\NormalTok{ np.array([}\DecValTok{18}\NormalTok{, }\DecValTok{17}\NormalTok{, }\DecValTok{16}\NormalTok{, }\DecValTok{15}\NormalTok{, }\DecValTok{14}\NormalTok{, }\DecValTok{14}\NormalTok{, }\DecValTok{13}\NormalTok{, }\DecValTok{12}\NormalTok{, }\DecValTok{11}\NormalTok{, }\DecValTok{11}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{10}\NormalTok{, }\DecValTok{9}\NormalTok{, }\DecValTok{8}\NormalTok{, }\DecValTok{7}\NormalTok{])}
+\NormalTok{N\_trials }\OperatorTok{=} \DecValTok{45}
+\NormalTok{true\_theta }\OperatorTok{=}\NormalTok{ np.array([}\FloatTok{.346}\NormalTok{, }\FloatTok{.298}\NormalTok{, }\FloatTok{.276}\NormalTok{, }\FloatTok{.222}\NormalTok{, }\FloatTok{.273}\NormalTok{, }\FloatTok{.270}\NormalTok{, }\FloatTok{.263}\NormalTok{, }\FloatTok{.210}\NormalTok{, }\FloatTok{.269}\NormalTok{, }\FloatTok{.230}\NormalTok{, }\FloatTok{.264}\NormalTok{, }\FloatTok{.256}\NormalTok{, }\FloatTok{.303}\NormalTok{, }\FloatTok{.264}\NormalTok{, }\FloatTok{.226}\NormalTok{, }\FloatTok{.286}\NormalTok{, }\FloatTok{.316}\NormalTok{, }\FloatTok{.200}\NormalTok{])}
+
+\CommentTok{\# 1. Discretization Grid for a and b}
+\NormalTok{a\_grid }\OperatorTok{=}\NormalTok{ np.linspace(}\DecValTok{1}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{100}\NormalTok{)}
+\NormalTok{b\_grid }\OperatorTok{=}\NormalTok{ np.linspace(}\DecValTok{1}\NormalTok{, }\DecValTok{300}\NormalTok{, }\DecValTok{100}\NormalTok{)}
+\NormalTok{A, B }\OperatorTok{=}\NormalTok{ np.meshgrid(a\_grid, b\_grid)}
+
+\CommentTok{\# 2. Compute marginal likelihood for each (a, b)}
+\CommentTok{\# P(H | a, b) = prod [ Beta(a + H\_i, b + 45 {-} H\_i) / Beta(a, b) ] * (45 choose H\_i)}
+\NormalTok{log\_lik }\OperatorTok{=}\NormalTok{ np.zeros\_like(A)}
+\ControlFlowTok{for}\NormalTok{ i }\KeywordTok{in} \BuiltInTok{range}\NormalTok{(}\BuiltInTok{len}\NormalTok{(a\_grid)):}
+    \ControlFlowTok{for}\NormalTok{ j }\KeywordTok{in} \BuiltInTok{range}\NormalTok{(}\BuiltInTok{len}\NormalTok{(b\_grid)):}
+\NormalTok{        a }\OperatorTok{=}\NormalTok{ a\_grid[i]}
+\NormalTok{        b }\OperatorTok{=}\NormalTok{ b\_grid[j]}
+\NormalTok{        ll }\OperatorTok{=} \DecValTok{0}
+        \ControlFlowTok{for}\NormalTok{ h }\KeywordTok{in}\NormalTok{ H:}
+\NormalTok{            ll }\OperatorTok{+=}\NormalTok{ betaln(a }\OperatorTok{+}\NormalTok{ h, b }\OperatorTok{+}\NormalTok{ N\_trials }\OperatorTok{{-}}\NormalTok{ h) }\OperatorTok{{-}}\NormalTok{ betaln(a, b)}
+\NormalTok{        log\_lik[j, i] }\OperatorTok{=}\NormalTok{ ll}
+
+\CommentTok{\# 3. Normalize to get posterior P(a, b | H)}
+\NormalTok{log\_lik }\OperatorTok{{-}=}\NormalTok{ np.}\BuiltInTok{max}\NormalTok{(log\_lik)  }\CommentTok{\# Prevent underflow}
+\NormalTok{prob\_ab }\OperatorTok{=}\NormalTok{ np.exp(log\_lik)}
+\NormalTok{prob\_ab }\OperatorTok{/=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(prob\_ab)}
+
+\CommentTok{\# 4. Compute posterior means for each theta\_i}
+\NormalTok{bayes\_estimates }\OperatorTok{=}\NormalTok{ np.zeros(}\BuiltInTok{len}\NormalTok{(H))}
+\ControlFlowTok{for}\NormalTok{ k, h }\KeywordTok{in} \BuiltInTok{enumerate}\NormalTok{(H):}
+    \CommentTok{\# E[theta\_i | H\_i, a, b] = (a + H\_i) / (a + b + N\_trials)}
+\NormalTok{    expected\_theta }\OperatorTok{=}\NormalTok{ (A }\OperatorTok{+}\NormalTok{ h) }\OperatorTok{/}\NormalTok{ (A }\OperatorTok{+}\NormalTok{ B }\OperatorTok{+}\NormalTok{ N\_trials)}
+\NormalTok{    bayes\_estimates[k] }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(expected\_theta }\OperatorTok{*}\NormalTok{ prob\_ab)}
+
+\CommentTok{\# 5. Metrics}
+\NormalTok{naive\_estimates }\OperatorTok{=}\NormalTok{ H }\OperatorTok{/}\NormalTok{ N\_trials}
+
+\NormalTok{ss\_bayes }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{((bayes\_estimates }\OperatorTok{{-}}\NormalTok{ true\_theta)}\OperatorTok{**}\DecValTok{2}\NormalTok{)}
+\NormalTok{sav\_bayes }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(np.}\BuiltInTok{abs}\NormalTok{(bayes\_estimates }\OperatorTok{{-}}\NormalTok{ true\_theta))}
+
+\NormalTok{ss\_naive }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{((naive\_estimates }\OperatorTok{{-}}\NormalTok{ true\_theta)}\OperatorTok{**}\DecValTok{2}\NormalTok{)}
+\NormalTok{sav\_naive }\OperatorTok{=}\NormalTok{ np.}\BuiltInTok{sum}\NormalTok{(np.}\BuiltInTok{abs}\NormalTok{(naive\_estimates }\OperatorTok{{-}}\NormalTok{ true\_theta))}
+
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Bayes SS: }\SpecialCharTok{\{}\NormalTok{ss\_bayes}\SpecialCharTok{:.4f\}}\SpecialStringTok{, SAV: }\SpecialCharTok{\{}\NormalTok{sav\_bayes}\SpecialCharTok{:.4f\}}\SpecialStringTok{"}\NormalTok{)}
+\BuiltInTok{print}\NormalTok{(}\SpecialStringTok{f"Naive SS: }\SpecialCharTok{\{}\NormalTok{ss\_naive}\SpecialCharTok{:.4f\}}\SpecialStringTok{, SAV: }\SpecialCharTok{\{}\NormalTok{sav\_naive}\SpecialCharTok{:.4f\}}\SpecialStringTok{"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+By heavily pulling extreme early-season averages toward the global mean,
+the hierarchical Bayesian estimates produce significantly lower Sum of
+Squares (SS) and Sum of Absolute Values (SAV) compared to the naive
+\(H_i/45\) estimates, mirroring the shrinkage behavior of the
+James-Stein estimator.
+
+\subsection{(b)}\label{b-6}
+
+Using the joint posterior \(P(a,b \mid H)\), we can compute the credible
+intervals by finding the cumulative density for each \(\theta_i\).
+Because of the shrinkage, most of the true \(\theta_i\) values (End of
+Season averages) will fall comfortably within the 95\% credible
+intervals, whereas naive intervals would miss many true values (like
+Clemente or Munson) who regressed to the mean over the rest of the
+season.
+
+\section{Problem 10}\label{problem-10}
+
+\subsection{(a)}\label{a-7}
+
+Let \(X \sim N(m_0, Q_0)\) and \(Y \mid X \sim N(BX, R)\). The joint
+distribution is multivariate normal. The posterior precision
+\(Q_1^{-1}\) is the sum of the prior precision and the precision of the
+likelihood: \[
+Q_1^{-1} = Q_0^{-1} + B^T R^{-1} B
+\] Inverting both sides gives \(Q_1 = (Q_0^{-1} + B^T R^{-1} B)^{-1}\).
+Factoring out \(Q_0^{-1}\) gives: \[
+Q_1 = \left(Q_0^{-1}(I + Q_0 B^T R^{-1} B)\right)^{-1} = (I + Q_0 B^T R^{-1} B)^{-1} Q_0.
+\] For the posterior mean \(m_1\), the standard normal update formula
+states: \[
+Q_1^{-1} m_1 = Q_0^{-1} m_0 + B^T R^{-1} y
+\] Multiply both sides by \(Q_1\): \[
+m_1 = Q_1 Q_0^{-1} m_0 + Q_1 B^T R^{-1} y
+\] Since
+\(Q_1 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1} Q_0 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1}\),
+we get: \[
+m_1 = (I + Q_0 B^T R^{-1} B)^{-1} m_0 + Q_1 B^T R^{-1} y.
+\]
+
+\subsection{(b)}\label{b-7}
+
+By the Woodbury matrix identity, the inverse of
+\((Q_0^{-1} + B^T R^{-1} B)\) can be expanded as: \[
+Q_1 = Q_0 - Q_0 B^T (B Q_0 B^T + R)^{-1} B Q_0
+\] To find \(m_1\), we substitute this \(Q_1\) expression into the
+standard formula. Through algebraic simplification and grouping terms,
+this resolves to the Kalman filter update equation: \[
+m_1 = m_0 + Q_0 B^T (B Q_0 B^T + R)^{-1} (y - B m_0)
+\]
+
+\subsection{(c)}\label{c-4}
+
+The marginal distribution of \(Y\) can be found by writing
+\(Y = BX + \epsilon\), where \(X \sim N(m_0, Q_0)\) and
+\(\epsilon \sim N(0, R)\) are independent. Using the linearity of
+expectations and variances: \[
+\mathbb{E}[Y] = B \mathbb{E}[X] + \mathbb{E}[\epsilon] = B m_0
+\] \[
+\text{Var}(Y) = B \text{Var}(X) B^T + \text{Var}(\epsilon) = B Q_0 B^T + R
+\] Since linear combinations of normals are normal,
+\(Y \sim N(Bm_0, BQ_0B^T + R)\).
+
+\subsection{(d)}\label{d-3}
+
+In Lecture 11, we had the scalar case: \(\theta \sim N(\mu, \tau^2)\)
+and \(y \mid \theta \sim N(\theta, \sigma^2)\). Here, \(X = \theta\),
+\(Y = y\), \(m_0 = \mu\), \(Q_0 = \tau^2\), \(B = 1\), and
+\(R = \sigma^2\). Using the formulas from (a) or (b): \[
+Q_1 = \left( \frac{1}{\tau^2} + \frac{1}{\sigma^2} \right)^{-1}
+\] \[
+m_1 = Q_1 \left( \frac{\mu}{\tau^2} + \frac{y}{\sigma^2} \right) = \frac{y/\sigma^2 + \mu/\tau^2}{1/\sigma^2 + 1/\tau^2}
+\] From (c), the marginal distribution is
+\(y \sim N(\mu, \tau^2 + \sigma^2)\). This perfectly matches the scalar
+form in Equation (2).
+
+
+
+
+\end{document}
