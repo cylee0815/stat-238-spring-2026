@@ -12,6 +12,9 @@ execute:
   warning: false
   message: false
 jupyter: python3
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 # Setup
@@ -23,7 +26,7 @@ import numpy as np
 import pymc as pm
 import arviz as az
 import matplotlib.pyplot as plt
-from scipy.stats import beta, gamma
+from scipy.stats import beta, gamma, binom
 from scipy.optimize import brentq, fsolve
 from scipy.special import comb, betaln, gammaln, beta as B
 ```
@@ -40,8 +43,8 @@ $$
 
 We are told that:
 
-- The expected survival probability is around 0.9.
-- It would be surprising if it were below 0.8 or above 0.97.
+-   The expected survival probability is around 0.9.
+-   It would be surprising if it were below 0.8 or above 0.97.
 
 ### Step 1: Match the Prior Mean
 
@@ -71,11 +74,13 @@ $$
 \beta = 0.1n.
 $$
 
-Thus, the prior must have a 9:1 ratio of prior survivals to prior deaths.
+Thus, the prior must have a 9:1 ratio of prior survivals to prior
+deaths.
 
 ### Step 2: Match the Credible Interval
 
-The statement that values below 0.8 or above 0.97 would be *surprising* is interpreted as approximately a 95% credible interval:
+The statement that values below 0.8 or above 0.97 would be *surprising*
+is interpreted as approximately a 95% credible interval:
 
 $$
 P(0.8 < \theta < 0.97) = p.
@@ -90,10 +95,10 @@ $$
 
 We compute solutions for several credibility levels:
 
-- $p = 0.90$
-- $p = 0.95$
-- $p = 0.99$
-- $p = 0.999$
+-   $p = 0.90$
+-   $p = 0.95$
+-   $p = 0.99$
+-   $p = 0.999$
 
 ```{python}
 lower = 0.8
@@ -130,35 +135,36 @@ for r in results:
 
 Solving the above equation gives:
 
-| Credible Mass | $n$ | $\alpha$ | $\beta$ |
-|---------------|------|----------|----------|
-| 0.90  | 31.254 | 28.129 | 3.125 |
-| 0.95  | 44.128 | 39.715 | 4.413 |
-| 0.99  | 76.846 | 69.161 | 7.685 |
-| 0.999 | 128.693 | 115.824 | 12.869 |
-
+| Credible Mass | $n$     | $\alpha$ | $\beta$ |
+|---------------|---------|----------|---------|
+| 0.90          | 31.254  | 28.129   | 3.125   |
+| 0.95          | 44.128  | 39.715   | 4.413   |
+| 0.99          | 76.846  | 69.161   | 7.685   |
+| 0.999         | 128.693 | 115.824  | 12.869  |
 
 ### Interpretation
 
-- The prior mean remains fixed at
+-   The prior mean remains fixed at
 
 $$
 \frac{\alpha}{\alpha+\beta} = 0.9.
 $$
 
-- Increasing the credible mass requirement forces $n = \alpha+\beta$ to increase.
-- Larger $n$ corresponds to a more concentrated prior around 0.9.
-- Thus, the credibility level directly controls prior strength.
+-   Increasing the credible mass requirement forces $n = \alpha+\beta$
+    to increase.
+-   Larger $n$ corresponds to a more concentrated prior around 0.9.
+-   Thus, the credibility level directly controls prior strength.
 
 For example:
 
-- 90% mass corresponds to roughly 31 pseudo-observations.
-- 95% mass corresponds to roughly 44 pseudo-observations.
-- 99.9% mass corresponds to roughly 129 pseudo-observations.
+-   90% mass corresponds to roughly 31 pseudo-observations.
+-   95% mass corresponds to roughly 44 pseudo-observations.
+-   99.9% mass corresponds to roughly 129 pseudo-observations.
 
 ### Recommended Prior
 
-If we interpret “surprising” as meaning a 95% credible region, then the most appropriate prior is
+If we interpret “surprising” as meaning a 95% credible region, then the
+most appropriate prior is
 
 $$
 \boxed{
@@ -168,10 +174,9 @@ $$
 
 This prior:
 
-- Has mean 0.9  
-- Places 95% probability between 0.8 and 0.97  
-- Corresponds to about 44 pseudo-patients  
-
+-   Has mean 0.9\
+-   Places 95% probability between 0.8 and 0.97\
+-   Corresponds to about 44 pseudo-patients
 
 ### Visualization of the Priors
 
@@ -197,12 +202,13 @@ plt.show()
 
 ### Final Remarks
 
-- The mean determines the ratio $\alpha : \beta$.
-- The credible interval determines the strength $\alpha+\beta$.
-- Larger $n$ implies stronger prior information.
-- Smaller $n$ implies a more diffuse prior.
+-   The mean determines the ratio $\alpha : \beta$.
+-   The credible interval determines the strength $\alpha+\beta$.
+-   Larger $n$ implies stronger prior information.
+-   Smaller $n$ implies a more diffuse prior.
 
-This provides a principled construction of the Beta prior directly from the problem statement.
+This provides a principled construction of the Beta prior directly from
+the problem statement.
 
 ## (b)
 
@@ -216,8 +222,8 @@ $$
 
 Under the Beta–Binomial conjugate model:
 
-- Prior: $\theta \sim \text{Beta}(\alpha,\beta)$
-- Likelihood: $X \mid \theta \sim \text{Binomial}(10,\theta)$
+-   Prior: $\theta \sim \text{Beta}(\alpha,\beta)$
+-   Likelihood: $X \mid \theta \sim \text{Binomial}(10,\theta)$
 
 the posterior is:
 
@@ -245,20 +251,23 @@ $$
 
 ### Probability the next patient survives (Posterior predictive probability)
 
-The probability that the next patient survives is called the **posterior predictive probability**.  
+The probability that the next patient survives is called the **posterior
+predictive probability**.
 
 Let $X_{11}$ denote the survival outcome of the next patient:
 
-- $X_{11} = 1$ if the patient survives,
-- $X_{11} = 0$ if the patient does not survive.
+-   $X_{11} = 1$ if the patient survives,
+-   $X_{11} = 0$ if the patient does not survive.
 
-Conditional on the unknown survival rate $\theta$, this is a Bernoulli trial:
+Conditional on the unknown survival rate $\theta$, this is a Bernoulli
+trial:
 
 $$
 X_{11} \mid \theta \sim \text{Bernoulli}(\theta).
 $$
 
-To get the unconditional probability, we integrate over the posterior distribution of $\theta$:
+To get the unconditional probability, we integrate over the posterior
+distribution of $\theta$:
 
 $$
 \begin{aligned}
@@ -271,11 +280,17 @@ $$
 
 In words:
 
-- We are averaging the survival probability $\theta$ over our posterior beliefs.
-- Even though we observed 10 perfect survivals, the prior prevents us from being completely certain.
-- This is a key feature of Bayesian prediction: **the predictive probability is a weighted average over all plausible values of the unknown parameter.**
+-   We are averaging the survival probability $\theta$ over our
+    posterior beliefs.
+-   Even though we observed 10 perfect survivals, the prior prevents us
+    from being completely certain.
+-   This is a key feature of Bayesian prediction: **the predictive
+    probability is a weighted average over all plausible values of the
+    unknown parameter.**
 
-Finally, since the posterior is $\theta \mid \text{data} \sim \text{Beta}(\alpha_{\text{post}},\beta_{\text{post}})$, the mean is:
+Finally, since the posterior is
+$\theta \mid \text{data} \sim \text{Beta}(\alpha_{\text{post}},\beta_{\text{post}})$,
+the mean is:
 
 $$
 \mathbb{E}[\theta \mid \text{data}] = \frac{\alpha_{\text{post}}}{\alpha_{\text{post}}+\beta_{\text{post}}} \approx \frac{49.7}{49.7+4.4} \approx 0.918.
@@ -297,14 +312,15 @@ P(X_{11}=1 \mid \text{data}) \approx 0.918.
 }
 $$
 
-Even after 10 perfect outcomes, the predictive probability does not jump to 1 — it is moderated by the prior information.
-
+Even after 10 perfect outcomes, the predictive probability does not jump
+to 1 — it is moderated by the prior information.
 
 ## (d)
 
-### Probability of 2 or more deaths in the next 20 operations###
+### Probability of 2 or more deaths in the next 20 operations
 
-Let $Y$ denote the number of deaths in the next $n_\text{future}=20$ operations.  
+Let $Y$ denote the number of deaths in the next $n_\text{future}=20$
+operations.
 
 Conditional on the survival probability $\theta$:
 
@@ -312,7 +328,7 @@ $$
 Y \mid \theta \sim \text{Binomial}(n_\text{future}, 1-\theta),
 $$
 
-where $1-\theta$ is the probability of death.  
+where $1-\theta$ is the probability of death.
 
 From earlier, the posterior of $\theta$ is
 
@@ -320,9 +336,12 @@ $$
 \theta \mid \text{data} \sim \text{Beta}(\alpha_\text{post}, \beta_\text{post}),
 $$
 
-with $\alpha_\text{post}$ counting prior + observed **survivals**, and $\beta_\text{post}$ counting prior + observed **deaths**.  
+with $\alpha_\text{post}$ counting prior + observed **survivals**, and
+$\beta_\text{post}$ counting prior + observed **deaths**.
 
-**Important:** Because $Y$ counts deaths (not survivals), we swap $\alpha_\text{post}$ and $\beta_\text{post}$ in the Beta-Binomial formula. That is, the marginal (unconditional) distribution of deaths is
+**Important:** Because $Y$ counts deaths (not survivals), we swap
+$\alpha_\text{post}$ and $\beta_\text{post}$ in the Beta-Binomial
+formula. That is, the marginal (unconditional) distribution of deaths is
 
 $$
 P(Y=k) = \binom{n_\text{future}}{k} \frac{B(\beta_\text{post} + k, \alpha_\text{post} + n_\text{future} - k)}{B(\alpha_\text{post}, \beta_\text{post})}, 
@@ -356,7 +375,8 @@ plt.legend()
 plt.show()
 ```
 
-The bar plot above shows the full predictive distribution of deaths, highlighting the uncertainty in future outcomes.
+The bar plot above shows the full predictive distribution of deaths,
+highlighting the uncertainty in future outcomes.
 
 $$
 \boxed{P(Y\ge 2) \approx 0.464}
@@ -367,27 +387,51 @@ $$
 # Problem 2
 
 ## (a)
-To express the prior belief that the coin is strongly biased toward either heads or tails, we need a distribution that places its probability mass at the extremes ($\theta \approx 0$ and $\theta \approx 1$). In the $\text{Beta}(\alpha, \beta)$ family, we achieve this symmetric "U-shape" by choosing shape parameters $\alpha =\beta < 1$. 
+
+To express the prior belief that the coin is strongly biased toward
+either heads or tails, we need a distribution that places its
+probability mass at the extremes ($\theta \approx 0$ and
+$\theta \approx 1$). In the $\text{Beta}(\alpha, \beta)$ family, we
+achieve this symmetric "U-shape" by choosing shape parameters
+$\alpha =\beta < 1$.
 
 There are two common choices here, depending on how extreme the bias is:
 
-**1. The Haldane Prior Limit ($\alpha \to 0, \beta \to 0$):** By taking the limit as $\alpha$ and $\beta$ approach $0$, the distribution pushes almost 100% of its mass infinitesimally close to exactly 0 and exactly 1. This expresses a very strong belief: the coin is practically a trick coin (either two-headed or two-tailed). This $\text{Beta}(0, 0)$ limit is known as the **Haldane prior** (for more background, see [this StackExchange discussion](https://stats.stackexchange.com/questions/326130/haldanes-prior-beta0-0-part-1)). Since we are told the coin is *strongly* biased, this is arguably the best choice because it strictly enforces the "either/or" nature of the coin.
+**1. The Haldane Prior Limit (**$\alpha \to 0, \beta \to 0$): By taking
+the limit as $\alpha$ and $\beta$ approach $0$, the distribution pushes
+almost 100% of its mass infinitesimally close to exactly 0 and
+exactly 1. This expresses a very strong belief: the coin is practically
+a trick coin (either two-headed or two-tailed). This $\text{Beta}(0, 0)$
+limit is known as the **Haldane prior** (for more background, see [this
+StackExchange
+discussion](https://stats.stackexchange.com/questions/326130/haldanes-prior-beta0-0-part-1)).
+Since we are told the coin is *strongly* biased, this is arguably the
+best choice because it strictly enforces the "either/or" nature of the
+coin.
 
-**2. The Jeffreys Prior ($\alpha = 0.5, \beta = 0.5$):** This is another standard, uninformative U-shaped prior. Unlike the Haldane prior, it is a proper prior (it integrates to 1) and acknowledges the heavy bias while leaving a bit more mathematical possibility for intermediate values. 
+**2. The Jeffreys Prior (**$\alpha = 0.5, \beta = 0.5$): This is another
+standard, uninformative U-shaped prior. Unlike the Haldane prior, it is
+a proper prior (it integrates to 1) and acknowledges the heavy bias
+while leaving a bit more mathematical possibility for intermediate
+values.
 
-The values $\alpha=0.5, \beta=0.5$ are not arbitrary; they are derived directly from the Fisher Information, $I(\theta)$, of the Bernoulli likelihood to ensure the prior is invariant under reparameterization ($f(\theta) \propto \sqrt{I(\theta)}$). 
-The derivation is as follows:
-* The log-likelihood of a single flip is: $\log P(X \mid \theta) = X \log(\theta) + (1 - X) \log(1 - \theta)$
-* The second derivative with respect to $\theta$ is: $\frac{d^2}{d\theta^2} = -\frac{X}{\theta^2} - \frac{1 - X}{(1 - \theta)^2}$
-* The Fisher Information is the negative expected value of the second derivative (since $\mathbb{E}[X] = \theta$):
-$$
+The values $\alpha=0.5, \beta=0.5$ are not arbitrary; they are derived
+directly from the Fisher Information, $I(\theta)$, of the Bernoulli
+likelihood to ensure the prior is invariant under reparameterization
+($f(\theta) \propto \sqrt{I(\theta)}$). The derivation is as follows: \*
+The log-likelihood of a single flip is:
+$\log P(X \mid \theta) = X \log(\theta) + (1 - X) \log(1 - \theta)$ \*
+The second derivative with respect to $\theta$ is:
+$\frac{d^2}{d\theta^2} = -\frac{X}{\theta^2} - \frac{1 - X}{(1 - \theta)^2}$
+\* The Fisher Information is the negative expected value of the second
+derivative (since $\mathbb{E}[X] = \theta$): $$
 I(\theta) = -\mathbb{E} \left[ -\frac{X}{\theta^2} - \frac{1 - X}{(1 - \theta)^2} \right] = \frac{\theta}{\theta^2} + \frac{1 - \theta}{(1 - \theta)^2} = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1}{\theta(1 - \theta)}
-$$
-* Applying Jeffreys' rule ($f(\theta) \propto \sqrt{I(\theta)}$):
-$$
+$$ \* Applying Jeffreys' rule ($f(\theta) \propto \sqrt{I(\theta)}$): $$
 f(\theta) \propto \sqrt{\frac{1}{\theta(1 - \theta)}} = \theta^{-1/2} (1 - \theta)^{-1/2}
-$$
-* Matching this to the Beta kernel $\theta^{\alpha - 1} (1 - \theta)^{\beta - 1}$, we get $\alpha - 1 = -0.5 \implies \alpha = 0.5$ and $\beta - 1 = -0.5 \implies \beta = 0.5$.
+$$ \* Matching this to the Beta kernel
+$\theta^{\alpha - 1} (1 - \theta)^{\beta - 1}$, we get
+$\alpha - 1 = -0.5 \implies \alpha = 0.5$ and
+$\beta - 1 = -0.5 \implies \beta = 0.5$.
 
 ```{python}
 # Define the grid for theta
@@ -418,29 +462,30 @@ plt.show()
 ```
 
 ## (b)
-We flip the coin $n = 5$ times and observe $x = 4$ heads. 
-The data follows a Binomial likelihood: $X \mid \theta \sim \text{Binomial}(5, \theta)$.
 
-Because the Beta distribution is conjugate to the Binomial likelihood, the posterior distribution is also a Beta distribution. The parameters update via simple addition:
-$$
+We flip the coin $n = 5$ times and observe $x = 4$ heads. The data
+follows a Binomial likelihood:
+$X \mid \theta \sim \text{Binomial}(5, \theta)$.
+
+Because the Beta distribution is conjugate to the Binomial likelihood,
+the posterior distribution is also a Beta distribution. The parameters
+update via simple addition: $$
 \alpha_{\text{post}} = \alpha_{\text{prior}} + x 
-$$
-$$
+$$ $$
 \beta_{\text{post}} = \beta_{\text{prior}} + n - x
 $$
 
-Using the Haldane prior limit where $\alpha \to 0$ and $\beta \to 0$, our update becomes:
-$$
+Using the Haldane prior limit where $\alpha \to 0$ and $\beta \to 0$,
+our update becomes: $$
 \alpha_{\text{post}} \approx 0 + 4 = 4
-$$
-$$
+$$ $$
 \beta_{\text{post}} \approx 0 + (5 - 4) = 1
-$$
-Thus, the posterior distribution is:
-$$
+$$ Thus, the posterior distribution is: $$
 \theta \mid X = 4 \sim \text{Beta}(4, 1)
-$$
-*(Note: The $\text{Beta}(4, 1)$ posterior from the Haldane prior yields a posterior mean of $\frac{4}{4+1} = 0.8$, which exactly matches the maximum likelihood estimate of the data $\frac{x}{n} = \frac{4}{5} = 0.8$.)*
+$$ *(Note: The* $\text{Beta}(4, 1)$ posterior from the Haldane prior
+yields a posterior mean of $\frac{4}{4+1} = 0.8$, which exactly matches
+the maximum likelihood estimate of the data
+$\frac{x}{n} = \frac{4}{5} = 0.8$.)
 
 ```{python}
 # Visualizing the Posterior Update
@@ -470,71 +515,89 @@ plt.show()
 
 # Problem 3
 
-We are asked to prove the **Laplace rule of succession**, which gives the predictive probability of the next observation being a success, given a history of successes and failures.
+We are asked to prove the **Laplace rule of succession**, which gives
+the predictive probability of the next observation being a success,
+given a history of successes and failures.
 
-The model is given as:
-- **Prior:** $\theta \sim \text{Uniform}(0, 1) \equiv \text{Beta}(1, 1)$
-- **Likelihood:** $X_i \overset{\text{i.i.d}}{\sim} \text{Bernoulli}(\theta)$ for $i = 1, \dots, n$
+The model is given as: - **Prior:**
+$\theta \sim \text{Uniform}(0, 1) \equiv \text{Beta}(1, 1)$ -
+**Likelihood:**
+$X_i \overset{\text{i.i.d}}{\sim} \text{Bernoulli}(\theta)$ for
+$i = 1, \dots, n$
 
-**Step 1: Rewrite the prior.**
-A $\text{Uniform}(0, 1)$ distribution has a constant probability density function $f(\theta) = 1$ for $\theta \in [0, 1]$. 
-Notice that the $\text{Beta}(1, 1)$ distribution has the exact same density: $f(\theta) \propto \theta^{1-1}(1-\theta)^{1-1} = \theta^0(1-\theta)^0 = 1$. 
-Therefore, our prior is exactly equivalent to:
-$$
+**Step 1: Rewrite the prior.** A $\text{Uniform}(0, 1)$ distribution has
+a constant probability density function $f(\theta) = 1$ for
+$\theta \in [0, 1]$. Notice that the $\text{Beta}(1, 1)$ distribution
+has the exact same density:
+$f(\theta) \propto \theta^{1-1}(1-\theta)^{1-1} = \theta^0(1-\theta)^0 = 1$.
+Therefore, our prior is exactly equivalent to: $$
 \theta \sim \text{Beta}(1, 1)
 $$
 
-**Step 2: Define the Likelihood.**
-Since the observations are independent Bernoulli trials, the joint likelihood of observing $x_1, \dots, x_n$ is the product of the individual likelihoods:
-$$
+**Step 2: Define the Likelihood.** Since the observations are
+independent Bernoulli trials, the joint likelihood of observing
+$x_1, \dots, x_n$ is the product of the individual likelihoods: $$
 P(X_1=x_1, \dots, X_n=x_n \mid \theta) = \prod_{i=1}^n \theta^{x_i}(1-\theta)^{1-x_i} = \theta^{\sum_{i=1}^n x_i} (1-\theta)^{n - \sum_{i=1}^n x_i}
 $$
 
-**Step 3: Find the Posterior Distribution.**
-By Bayes' Theorem, the posterior is proportional to the prior times the likelihood. Let the sum of successes be $S_n = \sum_{i=1}^n x_i$.
-$$
-f(\theta \mid X_1, \dots, X_n) \propto \left( \theta^{1-1} (1-\theta)^{1-1} \right) \cdot \left( \theta^{S_n} (1-\theta)^{n - S_n} \right)
-$$
-$$
-f(\theta \mid X_1, \dots, X_n) \propto \theta^{1 + S_n - 1} (1-\theta)^{1 + n - S_n - 1}
-$$
-We recognize this as the kernel of a new Beta distribution. The posterior is:
-$$
+**Step 3: Find the Posterior Distribution.** By Bayes' Theorem, the
+posterior is proportional to the prior times the likelihood. Let the sum
+of successes be $S_n = \sum_{i=1}^n x_i$. $$
+f(\theta \mid X_1, \dots, X_n) \propto \left( \theta^{1-1} (1-\theta)^{1-1} \mathbf{1}\{0\le\theta\le 1\}\right) \cdot \left( \theta^{S_n} (1-\theta)^{n - S_n} \right)
+$$ $$
+f(\theta \mid X_1, \dots, X_n) \propto \theta^{1 + S_n - 1} (1-\theta)^{1 + n - S_n - 1} \mathbf{1}\{0\le\theta\le 1\}
+$$ We recognize this as the kernel of a new Beta distribution. The
+posterior is: $$
 \theta \mid X_1, \dots, X_n \sim \text{Beta}(1 + S_n, 1 + n - S_n)
 $$
 
-**Step 4: Compute the Predictive Probability.**
-We want the probability that the *next* trial is a success: $P(X_{n+1} = 1 \mid X_1, \dots, X_n)$. 
-Using the Law of Total Probability, we integrate over all possible values of our hidden parameter $\theta$:
-$$
+**Step 4: Compute the Predictive Probability.** We want the probability
+that the *next* trial is a success:
+$P(X_{n+1} = 1 \mid X_1, \dots, X_n)$. Using the Law of Total
+Probability, we integrate over all possible values of our hidden
+parameter $\theta$: $$
 P(X_{n+1} = 1 \mid X_1, \dots, X_n) = \int_0^1 P(X_{n+1} = 1 \mid \theta) f(\theta \mid X_1, \dots, X_n) \, d\theta
-$$
-Since $X_{n+1} \sim \text{Bernoulli}(\theta)$, we know $P(X_{n+1} = 1 \mid \theta) = \theta$. Substituting this in:
-$$
+$$ Since $X_{n+1} \sim \text{Bernoulli}(\theta)$, we know
+$P(X_{n+1} = 1 \mid \theta) = \theta$. Substituting this in: $$
 P(X_{n+1} = 1 \mid X_1, \dots, X_n) = \int_0^1 \theta \cdot f(\theta \mid X_1, \dots, X_n) \, d\theta = \mathbb{E}[\theta \mid X_1, \dots, X_n]
-$$
-The predictive probability is simply the expected value of the posterior distribution. For a $\text{Beta}(\alpha, \beta)$ distribution, the expected value is $\frac{\alpha}{\alpha + \beta}$. 
-Plugging in our posterior parameters $\alpha = 1 + \sum_{i=1}^n x_i$ and $\beta = 1 + n - \sum_{i=1}^n x_i$:
-$$
+$$ The predictive probability is simply the expected value of the
+posterior distribution. For a $\text{Beta}(\alpha, \beta)$ distribution,
+the expected value is $\frac{\alpha}{\alpha + \beta}$. Plugging in our
+posterior parameters $\alpha = 1 + \sum_{i=1}^n x_i$ and
+$\beta = 1 + n - \sum_{i=1}^n x_i$: $$
 \mathbb{E}[\theta \mid X_1, \dots, X_n] = \frac{1 + \sum_{i=1}^n x_i}{(1 + \sum_{i=1}^n x_i) + (1 + n - \sum_{i=1}^n x_i)} = \frac{1 + \sum_{i=1}^n x_i}{n + 2}
-$$
-This completes the proof.
+$$ This completes the proof.
 
 ### Comparison with Homework One, Problem 2(e)
-In Homework One, Problem 2(e), we derived this exact same result—the Laplace Rule of Succession—but in a **discrete, finite setting**. There, the context was drawing $n$ balls from an urn of size $N$ and observing $x$ red balls. Assuming a discrete uniform prior over the number of red balls initially in the urn, the predictive probability of drawing a red ball on the $(n+1)$-th draw was exactly $\frac{x+1}{n+2}$. 
 
-In this current problem, we arrive at the identical formula but from a **continuous perspective**. Here, we assume an infinite sequence of Bernoulli trials driven by a continuous parameter $\theta$, paired with a continuous uniform prior, $\theta \sim \text{Uniform}(0, 1)$. 
+In Homework One, Problem 2(e), we derived this exact same result—the
+Laplace Rule of Succession—but in a **discrete, finite setting**. There,
+the context was drawing $n$ balls from an urn of size $N$ and observing
+$x$ red balls. Assuming a discrete uniform prior over the number of red
+balls initially in the urn, the predictive probability of drawing a red
+ball on the $(n+1)$-th draw was exactly $\frac{x+1}{n+2}$.
 
-This highlights a beautiful symmetry in Bayesian statistics: expressing total initial ignorance via a uniform prior over a finite, discrete set of proportions (the urn model) yields the exact same predictive behavior as expressing ignorance via a continuous uniform prior over a probability parameter (the Bernoulli model). In both cases, the prior acts by adding one "pseudo-success" and two "pseudo-trials" to the empirical fraction, smoothing the estimate.
+In this current problem, we arrive at the identical formula but from a
+**continuous perspective**. Here, we assume an infinite sequence of
+Bernoulli trials driven by a continuous parameter $\theta$, paired with
+a continuous uniform prior, $\theta \sim \text{Uniform}(0, 1)$.
+
+This highlights a beautiful symmetry in Bayesian statistics: expressing
+total initial ignorance via a uniform prior over a finite, discrete set
+of proportions (the urn model) yields the exact same predictive behavior
+as expressing ignorance via a continuous uniform prior over a
+probability parameter (the Bernoulli model). In both cases, the prior
+acts by adding one "pseudo-success" and two "pseudo-trials" to the
+empirical fraction, smoothing the estimate.
 
 ### Visualizing Laplace Smoothing
 
-Let's simulate a sequence of 20 trials where every single outcome is a success ($x_i=1$). Notice how the Laplace rule prevents the predictive probability from immediately jumping to 100% certainty after just a few trials.
+Let's simulate a sequence of 20 trials where every single outcome is a
+success ($x_i=1$). Notice how the Laplace rule prevents the predictive
+probability from immediately jumping to 100% certainty after just a few
+trials.
 
 ```{python}
-import numpy as np
-import matplotlib.pyplot as plt
-
 # Simulate 20 flips of a completely rigged coin (always heads, x=1)
 n_flips = 20
 flips = np.ones(n_flips)
@@ -566,54 +629,54 @@ plt.show()
 # Problem 4
 
 ## (a)
-We are given a Bayesian model with a Binomial likelihood and a prior on the logit transformation of $\theta$:
-- **Prior:** $Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)$
-- **Likelihood:** $X \mid \theta \sim \text{Binomial}(n, \theta)$
 
-**Step 1: Find the Prior Density for $\theta$**
-We know $Z$ is normally distributed, so its density is:
-$$
+We are given a Bayesian model with a Binomial likelihood and a prior on
+the logit transformation of $\theta$: - **Prior:**
+$Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)$ -
+**Likelihood:** $X \mid \theta \sim \text{Binomial}(n, \theta)$
+
+**Step 1: Find the Prior Density for** $\theta$ We know $Z$ is normally
+distributed, so its density is: $$
 f_Z(z) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} (z - \mu)^2 \right)
-$$
-To find the probability density function for $\theta$, $f_\theta(\theta)$, we must use the change of variables formula: 
-$$
+$$ To find the probability density function for $\theta$,
+$f_\theta(\theta)$, we must use the change of variables formula with a
+monotone function $g$ and $g^{-1}$: $$
 f_\theta(\theta) = f_Z(z(\theta)) \left| \frac{dz}{d\theta} \right|
-$$
-First, calculate the derivative (the Jacobian) of the logit function with respect to $\theta$:
-$$
+$$ First, calculate the derivative (the Jacobian) of the logit function
+with respect to $\theta$: $$
 \frac{dz}{d\theta} = \frac{d}{d\theta} \left[ \log(\theta) - \log(1 - \theta) \right] = \frac{1}{\theta} - \left( \frac{-1}{1 - \theta} \right) = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1-\theta+\theta}{\theta(1 - \theta)} = \frac{1}{\theta(1 - \theta)}
-$$
-Substituting $Z$ and $\frac{dz}{d\theta}$ back into our transformation formula, we get the prior density for $\theta$:
-$$
-f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
+$$ Substituting $Z$ and $\frac{dz}{d\theta}$ back into our
+transformation formula, we get the prior density for $\theta$: $$
+f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
 $$
 
-**Step 2: Apply Bayes' Theorem**
-The likelihood of observing $x$ successes in $n$ trials is:
-$$
+**Step 2: Apply Bayes' Theorem** The likelihood of observing $x$
+successes in $n$ trials is: $$
 P(X = x \mid \theta) = \binom{n}{x} \theta^x (1 - \theta)^{n-x}
-$$
-Bayes' Theorem states that the posterior is proportional to the likelihood times the prior:
-$$
+$$ Bayes' Theorem states that the posterior is proportional to the
+likelihood times the prior: $$
 f_{\theta \mid X=x}(\theta) \propto P(X = x \mid \theta) f_\theta(\theta)
-$$
-$$
+$$ $$
 f_{\theta \mid X=x}(\theta) \propto \binom{n}{x} \theta^x (1 - \theta)^{n-x} \frac{1}{\sqrt{2\pi\sigma^2}} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right)
-$$
-We can drop constants that do not depend on $\theta$ (like $\binom{n}{x}$ and $\frac{1}{\sqrt{2\pi\sigma^2}}$). To ensure the posterior is a valid probability density function (integrating to 1), we divide this unnormalized numerator by its integral over the support of $\theta$, which is $(0, 1)$. 
+$$ We can drop constants that do not depend on $\theta$ (like
+$\binom{n}{x}$ and $\frac{1}{\sqrt{2\pi\sigma^2}}$). To ensure the
+posterior is a valid probability density function (integrating to 1), we
+divide this unnormalized numerator by its integral over the support of
+$\theta$, which is $(0, 1)$.
 
-Adding the indicator function $I\{0 < \theta < 1\}$ to explicitly state the support, we arrive exactly at the desired formula:
-$$
-f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) d\theta }
+Adding the indicator function $I\{0 < \theta < 1\}$ to explicitly state
+the support, we arrive exactly at the desired formula: $$
+f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) d\theta }
 $$
 
 ## (b)
-We calculate the posterior mean, variance, and 95% credible interval using numerical discretization over a fine grid. Because $\mu = -9.273$, the true probability $\theta$ is extremely small (around $0.00009$), so our grid must be very dense near zero.
+
+We calculate the posterior mean, variance, and 95% credible interval
+using numerical discretization over a fine grid. Because $\mu = -9.273$,
+the true probability $\theta$ is extremely small (around $0.00009$), so
+our grid must be very dense near zero.
 
 ```{python}
-import numpy as np
-import scipy.stats as stats
-
 # Given parameters
 x_obs = 0
 n = 1295
@@ -628,7 +691,7 @@ logit_theta = np.log(theta_grid / (1 - theta_grid))
 log_prior = -0.5 * ((logit_theta - mu)**2) / sigma2 - np.log(theta_grid) - np.log(1 - theta_grid)
 
 # Calculate the log-likelihood (using scipy to safely handle 0*log(0) if x were > 0)
-log_likelihood = stats.binom.logpmf(x_obs, n, theta_grid)
+log_likelihood = binom.logpmf(x_obs, n, theta_grid)
 
 # Unnormalized log-posterior
 log_posterior = log_prior + log_likelihood
@@ -654,14 +717,12 @@ print(f"95% Cred. Interval:  [{lower_bound:.8f}, {upper_bound:.8f}]")
 ```
 
 ## (c)
-Now, we solve the same problem using PyMC MCMC sampling and visually compare the results.
+
+Now, we solve the same problem using PyMC MCMC sampling and visually
+compare the results.
 
 ```{python}
 #| eval: false
-import pymc as pm
-import arviz as az
-import matplotlib.pyplot as plt
-
 # PyMC requires the standard deviation, not variance
 sigma = np.sqrt(sigma2)
 
@@ -705,53 +766,66 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Conclusion for Part (c):**
-When running the PyMC model, you will notice that the `mean`, `sd` (square root of variance), and `hdi` ranges almost perfectly match the `post_mean`, standard deviation, and credible interval computed in part (b). The histogram of the PyMC trace overlaps exactly with the density curve derived from numerical integration, confirming that both the discrete grid approximation and the continuous MCMC sampler successfully mapped the exact same underlying mathematical posterior.
+**Conclusion for Part (c):** When running the PyMC model, you will
+notice that the `mean`, `sd` (square root of variance), and `hdi` ranges
+almost perfectly match the `post_mean`, standard deviation, and credible
+interval computed in part (b). The histogram of the PyMC trace overlaps
+exactly with the density curve derived from numerical integration,
+confirming that both the discrete grid approximation and the continuous
+MCMC sampler successfully mapped the exact same underlying mathematical
+posterior.
 
 # Problem 5
 
 ## (a)
-We are given the following model:
-- **Prior:** $\theta \sim \text{Gamma}(\alpha, \beta)$ with density $f(\theta) \propto \theta^{\alpha - 1} \exp(-\beta \theta) I\{\theta > 0\}$
-- **Likelihood:** $Y \mid \theta \sim \text{Poisson}(k \theta)$ with PMF $P(Y = y \mid \theta) = \frac{(k\theta)^y \exp(-k\theta)}{y!}$
 
-By Bayes' theorem, the posterior density is proportional to the prior times the likelihood:
-$$
+We are given the following model: - **Prior:**
+$\theta \sim \text{Gamma}(\alpha, \beta)$ with density
+$f(\theta) \propto \theta^{\alpha - 1} \exp(-\beta \theta) I\{\theta > 0\}$ -
+**Likelihood:** $Y \mid \theta \sim \text{Poisson}(k \theta)$ with PMF
+$P(Y = y \mid \theta) = \frac{(k\theta)^y \exp(-k\theta)}{y!}$
+
+By Bayes' theorem, the posterior density is proportional to the prior
+times the likelihood: $$
 \begin{aligned}
 f(\theta \mid y) &\propto f(\theta) \cdot P(Y = y \mid \theta) \\
 &\propto \left( \theta^{\alpha - 1} \exp(-\beta \theta) \right) \left( \theta^y \exp(-k\theta) \right) \\
 &= \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta)
 \end{aligned}
-$$
-We recognize this as the kernel of a Gamma distribution with shape parameter $\alpha + y$ and rate parameter $\beta + k$. Thus,
-$$
+$$ We recognize this as the kernel of a Gamma distribution with shape
+parameter $\alpha + y$ and rate parameter $\beta + k$. Thus, $$
 \theta \mid Y = y \sim \text{Gamma}(\alpha + y, \beta + k).
 $$
 
 ## (b)
-The marginal distribution of $Y$ is obtained by integrating the joint density over all possible values of $\theta$:
-$$
+
+The marginal distribution of $Y$ is obtained by integrating the joint
+density over all possible values of $\theta$: $$
 \begin{aligned}
 P(Y = y) &= \int_0^\infty P(Y = y \mid \theta) f(\theta) \, d\theta \\
 &= \int_0^\infty \frac{(k\theta)^y \exp(-k\theta)}{y!} \frac{\beta^\alpha}{\Gamma(\alpha)} \theta^{\alpha - 1} \exp(-\beta \theta) \, d\theta \\
 &= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \int_0^\infty \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta) \, d\theta
 \end{aligned}
-$$
-The integral is the unnormalized core of a $\text{Gamma}(\alpha + y, \beta + k)$ distribution. We know that $\int_0^\infty x^{A-1} e^{-Bx} dx = \frac{\Gamma(A)}{B^A}$. Using this fact:
-$$
+$$ The integral is the unnormalized core of a
+$\text{Gamma}(\alpha + y, \beta + k)$ distribution. We know that
+$\int_0^\infty x^{A-1} e^{-Bx} dx = \frac{\Gamma(A)}{B^A}$. Using this
+fact: $$
 \begin{aligned}
 P(Y = y) &= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \frac{\Gamma(\alpha + y)}{(\beta + k)^{\alpha + y}} \\
 &= \frac{\Gamma(\alpha + y)}{\Gamma(\alpha) y!} \left(\frac{k}{\beta + k} \right)^y \left(\frac{\beta}{\beta + k} \right)^{\alpha}
 \end{aligned}
-$$
-This holds for $y = 0, 1, 2, \dots$, representing a Negative Binomial distribution.
+$$ This holds for $y = 0, 1, 2, \dots$, representing a Negative Binomial
+distribution.
 
 # Problem 6
 
 ## (a)
-Let $\theta$ be the mortality rate per 100,000 people. We are given:
-1. The typical rate (mean) is $\mathbb{E}[\theta] = \frac{\alpha}{\beta} = 0.6$.
-2. Rates above 1.5 are rare. We can interpret "rare" as a 1% probability: $P(\theta > 1.5) = 0.01$.
+
+Let $\theta$ be the mortality rate per 100,000 people. We are given: 1.
+The typical rate (mean) is
+$\mathbb{E}[\theta] = \frac{\alpha}{\beta} = 0.6$. 2. Rates above 1.5
+are rare. We can interpret "rare" as a 1% probability:
+$P(\theta > 1.5) = 0.01$.
 
 We can solve for $\alpha$ and $\beta$ numerically, similar to Problem 1.
 
@@ -770,42 +844,66 @@ beta_opt = alpha_opt / 0.6
 print(f"Optimal alpha: {alpha_opt:.3f}")
 print(f"Optimal beta:  {beta_opt:.3f}")
 ```
-Based on this, a reasonable prior is $\theta \sim \text{Gamma}(3.3, 5.5)$. 
+
+Based on this, a reasonable prior is
+$\theta \sim \text{Gamma}(3.3, 5.5)$.
 
 ## (b)
-The population is 200,000, which is exactly $2 \times 100,000$. Thus, $k = 2$.
-We observe $y = 3$ deaths in one year.
-Using the conjugate update rule from 5(a):
-$$
+
+The population is 200,000, which is exactly $2 \times 100,000$. Thus,
+$k = 2$. We observe $y = 3$ deaths in one year. Using the conjugate
+update rule from 5(a): $$
 \theta \mid y \sim \text{Gamma}(\alpha + y, \beta + k) = \text{Gamma}(3.3 + 3, 5.5 + 2) = \text{Gamma}(6.3, 7.5)
 $$
 
 ## (c)
-Over 10 years, the multiplier becomes $k = 2 \times 10 = 20$.
-We observe $y = 30$ deaths.
-Using the prior from (a):
-$$
+
+Over 10 years, the multiplier becomes $k = 2 \times 10 = 20$. We observe
+$y = 30$ deaths. Using the prior from (a): $$
 \theta \mid y \sim \text{Gamma}(3.3 + 30, 5.5 + 20) = \text{Gamma}(33.3, 25.5)
 $$
 
 ## (d)
-**Similarities:** Both posteriors use the same prior structure and push the expected value towards the observed data mean.
-**Differences:** The 10-year posterior is much narrower (lower variance) than the 1-year posterior. In the 1-year case, the data ($3/2 = 1.5$) was pulled heavily by the prior ($0.6$), yielding a posterior mean of $6.3 / 7.5 = 0.84$. In the 10-year case, the larger sample size dominates the prior, bringing the posterior mean to $33.3 / 25.5 = 1.30$, which is much closer to the raw empirical rate of $30/20 = 1.5$. The increased data significantly reduces our uncertainty.
+
+**Similarities:** Both posteriors use the same prior structure and push
+the expected value towards the observed data mean. **Differences:** The
+10-year posterior is much narrower (lower variance) than the 1-year
+posterior. In the 1-year case, the data ($3/2 = 1.5$) was pulled heavily
+by the prior ($0.6$), yielding a posterior mean of $6.3 / 7.5 = 0.84$.
+In the 10-year case, the larger sample size dominates the prior,
+bringing the posterior mean to $33.3 / 25.5 = 1.30$, which is much
+closer to the raw empirical rate of $30/20 = 1.5$. The increased data
+significantly reduces our uncertainty.
 
 # Problem 7
 
 ## (a)
-The binomial distribution $\text{Bin}(n, p)$ models the number of successes in $n$ independent trials with probability $p$. If $n$ is very large and $p$ is very small, the Poisson limit theorem (or Le Cam's theorem) states that the binomial distribution is well-approximated by a Poisson distribution with mean $\lambda = np$. 
 
-For the kidney cancer dataset, $n_i$ (county population) is large, and $\theta_i$ (death rate per person) is extremely small. Therefore, letting $\lambda_i = n_i \theta_i$, we can effectively approximate the likelihood $X_i \sim \text{Bin}(n_i, \theta_i)$ as $X_i \sim \text{Poisson}(n_i \theta_i)$.
+The binomial distribution $\text{Bin}(n, p)$ models the number of
+successes in $n$ independent trials with probability $p$. If $n$ is very
+large and $p$ is very small, the Poisson limit theorem (or Le Cam's
+theorem) states that the binomial distribution is well-approximated by a
+Poisson distribution with mean $\lambda = np$.
+
+For the kidney cancer dataset, $n_i$ (county population) is large, and
+$\theta_i$ (death rate per person) is extremely small. Therefore,
+letting $\lambda_i = n_i \theta_i$, we can effectively approximate the
+likelihood $X_i \sim \text{Bin}(n_i, \theta_i)$ as
+$X_i \sim \text{Poisson}(n_i \theta_i)$.
 
 ## (b)
-We want to estimate $\alpha$ and $\beta$ by maximizing the marginal likelihood. From 5(b), the marginal likelihood for a single county is Negative Binomial. Assuming independence across $N$ counties, the total log marginal likelihood is:
-$$
+
+We want to estimate $\alpha$ and $\beta$ by maximizing the marginal
+likelihood. From 5(b), the marginal likelihood for a single county is
+Negative Binomial. Assuming independence across $N$ counties, the total
+log marginal likelihood is: $$
 \ell(\alpha, \beta) = \sum_{i=1}^N \left[ \log \Gamma(\alpha + X_i) - \log \Gamma(\alpha) - \log(X_i!) + X_i \log\left(\frac{n_i}{\beta + n_i}\right) + \alpha \log\left(\frac{\beta}{\beta + n_i}\right) \right]
 $$
 
-*(Note: We would load the dataset here in Python to compute this over a grid of $\alpha$ and $\beta$. Since the raw dataset isn't provided in the prompt, here is the boilerplate code to execute the grid search once `X` and `n` are defined).*
+*(Note: We would load the dataset here in Python to compute this over a
+grid of* $\alpha$ and $\beta$. Since the raw dataset isn't provided in
+the prompt, here is the boilerplate code to execute the grid search once
+`X` and `n` are defined).
 
 ```{python}
 # Placeholder for actual data loading
@@ -826,28 +924,42 @@ betas = np.linspace(1000, 20000, 100)
 ```
 
 ## (c)
-Using the empirical Bayes estimates $\hat{\alpha}$ and $\hat{\beta}$, the posterior for each county is $\text{Gamma}(\hat{\alpha} + X_i, \hat{\beta} + n_i)$.
-The posterior mean estimate for $\theta_i$ is:
-$$
+
+Using the empirical Bayes estimates $\hat{\alpha}$ and $\hat{\beta}$,
+the posterior for each county is
+$\text{Gamma}(\hat{\alpha} + X_i, \hat{\beta} + n_i)$. The posterior
+mean estimate for $\theta_i$ is: $$
 \hat{\theta}_i = \frac{\hat{\alpha} + X_i}{\hat{\beta} + n_i}
-$$
-Compared to the Beta-Binomial model, the Poisson-Gamma estimates should be functionally nearly identical due to the Poisson approximation of the Binomial distribution for large $N$ and small $p$. The top 100 counties ranked by $\hat{\theta}_i$ will likely show heavy overlap, effectively identical up to minor numerical precision differences.
+$$ Compared to the Beta-Binomial model, the Poisson-Gamma estimates
+should be functionally nearly identical due to the Poisson approximation
+of the Binomial distribution for large $N$ and small $p$. The top 100
+counties ranked by $\hat{\theta}_i$ will likely show heavy overlap,
+effectively identical up to minor numerical precision differences.
 
 ## (d)
-For the full Bayes model, we need uninformative priors for $\alpha$ and $\beta$. A standard choice for parameters defined on $(0, \infty)$ is a vague prior, such as $f(\alpha, \beta) \propto (\alpha + \beta)^{-5/2}$ (as suggested by Gelman) or independent vague Gamma priors, e.g., $\alpha \sim \text{Gamma}(0.01, 0.01)$ and $\beta \sim \text{Gamma}(0.01, 0.01)$.
 
-Using a 2D grid-based discretization approach:
-1. Define a 2D grid over reasonable ranges for $\alpha$ and $\beta$.
-2. Compute the unnormalized log posterior for each $(\alpha, \beta)$ pair: $\log P(\alpha, \beta \mid X) \propto \ell(\alpha, \beta) + \log P(\alpha, \beta)$.
-3. Exponentiate and normalize the grid to get the joint posterior $P(\alpha, \beta \mid X)$.
-4. The marginal posterior mean for each $\theta_i$ is computed by integrating the conditional posterior mean over the joint posterior of $\alpha, \beta$:
-$$
+For the full Bayes model, we need uninformative priors for $\alpha$ and
+$\beta$. A standard choice for parameters defined on $(0, \infty)$ is a
+vague prior, such as $f(\alpha, \beta) \propto (\alpha + \beta)^{-5/2}$
+(as suggested by Gelman) or independent vague Gamma priors, e.g.,
+$\alpha \sim \text{Gamma}(0.01, 0.01)$ and
+$\beta \sim \text{Gamma}(0.01, 0.01)$.
+
+Using a 2D grid-based discretization approach: 1. Define a 2D grid over
+reasonable ranges for $\alpha$ and $\beta$. 2. Compute the unnormalized
+log posterior for each $(\alpha, \beta)$ pair:
+$\log P(\alpha, \beta \mid X) \propto \ell(\alpha, \beta) + \log P(\alpha, \beta)$.
+3. Exponentiate and normalize the grid to get the joint posterior
+$P(\alpha, \beta \mid X)$. 4. The marginal posterior mean for each
+$\theta_i$ is computed by integrating the conditional posterior mean
+over the joint posterior of $\alpha, \beta$: $$
 \mathbb{E}[\theta_i \mid X] = \sum_{\alpha, \beta} \left( \frac{\alpha + X_i}{\beta + n_i} \right) P(\alpha, \beta \mid X)
 $$
 
 # Problem 8
 
-Here, we implement the full Bayes model from Equation (1) using PyMC and compare the posterior means to the numerical grid approach.
+Here, we implement the full Bayes model from Equation (1) using PyMC and
+compare the posterior means to the numerical grid approach.
 
 ```{python}
 #| eval: false
@@ -875,13 +987,19 @@ summary_df = az.summary(trace, var_names=['theta'])
 pymc_theta_means = summary_df['mean'].values
 ```
 
-**Comparison:**
-The posterior means obtained via MCMC should closely align with the marginal posterior means computed via 2D numerical discretization in part (d). MCMC handles the integration implicitly by sampling from the joint posterior space, avoiding the computational overhead of calculating values over a dense grid, which makes it much more scalable for models with many counties.
+**Comparison:** The posterior means obtained via MCMC should closely
+align with the marginal posterior means computed via 2D numerical
+discretization in part (d). MCMC handles the integration implicitly by
+sampling from the joint posterior space, avoiding the computational
+overhead of calculating values over a dense grid, which makes it much
+more scalable for models with many counties.
 
 # Problem 9
 
 ## (a)
-We evaluate the baseball dataset using a hierarchical Beta-Binomial model with uniform priors on the hyperparameters $a$ and $b$. 
+
+We evaluate the baseball dataset using a hierarchical Beta-Binomial
+model with uniform priors on the hyperparameters $a$ and $b$.
 
 ```{python}
 #| eval: false
@@ -931,66 +1049,77 @@ sav_naive = np.sum(np.abs(naive_estimates - true_theta))
 print(f"Bayes SS: {ss_bayes:.4f}, SAV: {sav_bayes:.4f}")
 print(f"Naive SS: {ss_naive:.4f}, SAV: {sav_naive:.4f}")
 ```
-By heavily pulling extreme early-season averages toward the global mean, the hierarchical Bayesian estimates produce significantly lower Sum of Squares (SS) and Sum of Absolute Values (SAV) compared to the naive $H_i/45$ estimates, mirroring the shrinkage behavior of the James-Stein estimator.
+
+By heavily pulling extreme early-season averages toward the global mean,
+the hierarchical Bayesian estimates produce significantly lower Sum of
+Squares (SS) and Sum of Absolute Values (SAV) compared to the naive
+$H_i/45$ estimates, mirroring the shrinkage behavior of the James-Stein
+estimator.
 
 ## (b)
-Using the joint posterior $P(a,b \mid H)$, we can compute the credible intervals by finding the cumulative density for each $\theta_i$. Because of the shrinkage, most of the true $\theta_i$ values (End of Season averages) will fall comfortably within the 95% credible intervals, whereas naive intervals would miss many true values (like Clemente or Munson) who regressed to the mean over the rest of the season.
+
+Using the joint posterior $P(a,b \mid H)$, we can compute the credible
+intervals by finding the cumulative density for each $\theta_i$. Because
+of the shrinkage, most of the true $\theta_i$ values (End of Season
+averages) will fall comfortably within the 95% credible intervals,
+whereas naive intervals would miss many true values (like Clemente or
+Munson) who regressed to the mean over the rest of the season.
 
 # Problem 10
 
 ## (a)
-Let $X \sim N(m_0, Q_0)$ and $Y \mid X \sim N(BX, R)$.
-The joint distribution is multivariate normal. The posterior precision $Q_1^{-1}$ is the sum of the prior precision and the precision of the likelihood:
+
+Let $X \sim N(m_0, Q_0)$ and $Y \mid X \sim N(BX, R)$. The joint
+distribution is multivariate normal. The posterior precision $Q_1^{-1}$
+is the sum of the prior precision and the precision of the likelihood:
 $$
 Q_1^{-1} = Q_0^{-1} + B^T R^{-1} B
-$$
-Inverting both sides gives $Q_1 = (Q_0^{-1} + B^T R^{-1} B)^{-1}$.
-Factoring out $Q_0^{-1}$ gives:
-$$
+$$ Inverting both sides gives $Q_1 = (Q_0^{-1} + B^T R^{-1} B)^{-1}$.
+Factoring out $Q_0^{-1}$ gives: $$
 Q_1 = \left(Q_0^{-1}(I + Q_0 B^T R^{-1} B)\right)^{-1} = (I + Q_0 B^T R^{-1} B)^{-1} Q_0.
-$$
-For the posterior mean $m_1$, the standard normal update formula states:
-$$
+$$ For the posterior mean $m_1$, the standard normal update formula
+states: $$
 Q_1^{-1} m_1 = Q_0^{-1} m_0 + B^T R^{-1} y
-$$
-Multiply both sides by $Q_1$:
-$$
+$$ Multiply both sides by $Q_1$: $$
 m_1 = Q_1 Q_0^{-1} m_0 + Q_1 B^T R^{-1} y
-$$
-Since $Q_1 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1} Q_0 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1}$, we get:
-$$
+$$ Since
+$Q_1 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1} Q_0 Q_0^{-1} = (I + Q_0 B^T R^{-1} B)^{-1}$,
+we get: $$
 m_1 = (I + Q_0 B^T R^{-1} B)^{-1} m_0 + Q_1 B^T R^{-1} y.
 $$
 
 ## (b)
-By the Woodbury matrix identity, the inverse of $(Q_0^{-1} + B^T R^{-1} B)$ can be expanded as:
-$$
+
+By the Woodbury matrix identity, the inverse of
+$(Q_0^{-1} + B^T R^{-1} B)$ can be expanded as: $$
 Q_1 = Q_0 - Q_0 B^T (B Q_0 B^T + R)^{-1} B Q_0
-$$
-To find $m_1$, we substitute this $Q_1$ expression into the standard formula. Through algebraic simplification and grouping terms, this resolves to the Kalman filter update equation:
-$$
+$$ To find $m_1$, we substitute this $Q_1$ expression into the standard
+formula. Through algebraic simplification and grouping terms, this
+resolves to the Kalman filter update equation: $$
 m_1 = m_0 + Q_0 B^T (B Q_0 B^T + R)^{-1} (y - B m_0)
 $$
 
 ## (c)
-The marginal distribution of $Y$ can be found by writing $Y = BX + \epsilon$, where $X \sim N(m_0, Q_0)$ and $\epsilon \sim N(0, R)$ are independent.
-Using the linearity of expectations and variances:
-$$
+
+The marginal distribution of $Y$ can be found by writing
+$Y = BX + \epsilon$, where $X \sim N(m_0, Q_0)$ and
+$\epsilon \sim N(0, R)$ are independent. Using the linearity of
+expectations and variances: $$
 \mathbb{E}[Y] = B \mathbb{E}[X] + \mathbb{E}[\epsilon] = B m_0
-$$
-$$
+$$ $$
 \text{Var}(Y) = B \text{Var}(X) B^T + \text{Var}(\epsilon) = B Q_0 B^T + R
-$$
-Since linear combinations of normals are normal, $Y \sim N(Bm_0, BQ_0B^T + R)$.
+$$ Since linear combinations of normals are normal,
+$Y \sim N(Bm_0, BQ_0B^T + R)$.
 
 ## (d)
-In Lecture 11, we had the scalar case: $\theta \sim N(\mu, \tau^2)$ and $y \mid \theta \sim N(\theta, \sigma^2)$.
-Here, $X = \theta$, $Y = y$, $m_0 = \mu$, $Q_0 = \tau^2$, $B = 1$, and $R = \sigma^2$.
-Using the formulas from (a) or (b):
-$$
+
+In Lecture 11, we had the scalar case: $\theta \sim N(\mu, \tau^2)$ and
+$y \mid \theta \sim N(\theta, \sigma^2)$. Here, $X = \theta$, $Y = y$,
+$m_0 = \mu$, $Q_0 = \tau^2$, $B = 1$, and $R = \sigma^2$. Using the
+formulas from (a) or (b): $$
 Q_1 = \left( \frac{1}{\tau^2} + \frac{1}{\sigma^2} \right)^{-1}
-$$
-$$
+$$ $$
 m_1 = Q_1 \left( \frac{\mu}{\tau^2} + \frac{y}{\sigma^2} \right) = \frac{y/\sigma^2 + \mu/\tau^2}{1/\sigma^2 + 1/\tau^2}
-$$
-From (c), the marginal distribution is $y \sim N(\mu, \tau^2 + \sigma^2)$. This perfectly matches the scalar form in Equation (2).
+$$ From (c), the marginal distribution is
+$y \sim N(\mu, \tau^2 + \sigma^2)$. This perfectly matches the scalar
+form in Equation (2).

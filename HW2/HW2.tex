@@ -220,7 +220,7 @@ libraries}\label{python-setup-import-libraries}
 \ImportTok{import}\NormalTok{ pymc }\ImportTok{as}\NormalTok{ pm}
 \ImportTok{import}\NormalTok{ arviz }\ImportTok{as}\NormalTok{ az}
 \ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
-\ImportTok{from}\NormalTok{ scipy.stats }\ImportTok{import}\NormalTok{ beta, gamma}
+\ImportTok{from}\NormalTok{ scipy.stats }\ImportTok{import}\NormalTok{ beta, gamma, binom}
 \ImportTok{from}\NormalTok{ scipy.optimize }\ImportTok{import}\NormalTok{ brentq, fsolve}
 \ImportTok{from}\NormalTok{ scipy.special }\ImportTok{import}\NormalTok{ comb, betaln, gammaln, beta }\ImportTok{as}\NormalTok{ B}
 \end{Highlighting}
@@ -705,7 +705,7 @@ achieve this symmetric ``U-shape'' by choosing shape parameters
 
 There are two common choices here, depending on how extreme the bias is:
 
-\textbf{1. The Haldane Prior Limit (\(\alpha \to 0, \beta \to 0\)):} By
+\textbf{1. The Haldane Prior Limit (}\(\alpha \to 0, \beta \to 0\)): By
 taking the limit as \(\alpha\) and \(\beta\) approach \(0\), the
 distribution pushes almost 100\% of its mass infinitesimally close to
 exactly 0 and exactly 1. This expresses a very strong belief: the coin
@@ -717,7 +717,7 @@ StackExchange discussion}). Since we are told the coin is
 \emph{strongly} biased, this is arguably the best choice because it
 strictly enforces the ``either/or'' nature of the coin.
 
-\textbf{2. The Jeffreys Prior (\(\alpha = 0.5, \beta = 0.5\)):} This is
+\textbf{2. The Jeffreys Prior (}\(\alpha = 0.5, \beta = 0.5\)): This is
 another standard, uninformative U-shaped prior. Unlike the Haldane
 prior, it is a proper prior (it integrates to 1) and acknowledges the
 heavy bias while leaving a bit more mathematical possibility for
@@ -795,10 +795,10 @@ Using the Haldane prior limit where \(\alpha \to 0\) and
 \beta_{\text{post}} \approx 0 + (5 - 4) = 1
 \] Thus, the posterior distribution is: \[
 \theta \mid X = 4 \sim \text{Beta}(4, 1)
-\] \emph{(Note: The \(\text{Beta}(4, 1)\) posterior from the Haldane
+\] \emph{(Note: The} \(\text{Beta}(4, 1)\) posterior from the Haldane
 prior yields a posterior mean of \(\frac{4}{4+1} = 0.8\), which exactly
 matches the maximum likelihood estimate of the data
-\(\frac{x}{n} = \frac{4}{5} = 0.8\).)}
+\(\frac{x}{n} = \frac{4}{5} = 0.8\).)
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -860,9 +860,9 @@ P(X_1=x_1, \dots, X_n=x_n \mid \theta) = \prod_{i=1}^n \theta^{x_i}(1-\theta)^{1
 \textbf{Step 3: Find the Posterior Distribution.} By Bayes' Theorem, the
 posterior is proportional to the prior times the likelihood. Let the sum
 of successes be \(S_n = \sum_{i=1}^n x_i\). \[
-f(\theta \mid X_1, \dots, X_n) \propto \left( \theta^{1-1} (1-\theta)^{1-1} \right) \cdot \left( \theta^{S_n} (1-\theta)^{n - S_n} \right)
+f(\theta \mid X_1, \dots, X_n) \propto \left( \theta^{1-1} (1-\theta)^{1-1} \mathbf{1}\{0\le\theta\le 1\}\right) \cdot \left( \theta^{S_n} (1-\theta)^{n - S_n} \right)
 \] \[
-f(\theta \mid X_1, \dots, X_n) \propto \theta^{1 + S_n - 1} (1-\theta)^{1 + n - S_n - 1}
+f(\theta \mid X_1, \dots, X_n) \propto \theta^{1 + S_n - 1} (1-\theta)^{1 + n - S_n - 1} \mathbf{1}\{0\le\theta\le 1\}
 \] We recognize this as the kernel of a new Beta distribution. The
 posterior is: \[
 \theta \mid X_1, \dots, X_n \sim \text{Beta}(1 + S_n, 1 + n - S_n)
@@ -919,9 +919,6 @@ trials.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ numpy }\ImportTok{as}\NormalTok{ np}
-\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
-
 \CommentTok{\# Simulate 20 flips of a completely rigged coin (always heads, x=1)}
 \NormalTok{n\_flips }\OperatorTok{=} \DecValTok{20}
 \NormalTok{flips }\OperatorTok{=}\NormalTok{ np.ones(n\_flips)}
@@ -962,18 +959,19 @@ the logit transformation of \(\theta\): - \textbf{Prior:}
 \(Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)\)
 - \textbf{Likelihood:} \(X \mid \theta \sim \text{Binomial}(n, \theta)\)
 
-\textbf{Step 1: Find the Prior Density for \(\theta\)} We know \(Z\) is
+\textbf{Step 1: Find the Prior Density for} \(\theta\) We know \(Z\) is
 normally distributed, so its density is: \[
 f_Z(z) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} (z - \mu)^2 \right)
 \] To find the probability density function for \(\theta\),
-\(f_\theta(\theta)\), we must use the change of variables formula: \[
+\(f_\theta(\theta)\), we must use the change of variables formula with a
+monotone function \(g\) and \(g^{-1}\): \[
 f_\theta(\theta) = f_Z(z(\theta)) \left| \frac{dz}{d\theta} \right|
 \] First, calculate the derivative (the Jacobian) of the logit function
 with respect to \(\theta\): \[
 \frac{dz}{d\theta} = \frac{d}{d\theta} \left[ \log(\theta) - \log(1 - \theta) \right] = \frac{1}{\theta} - \left( \frac{-1}{1 - \theta} \right) = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1-\theta+\theta}{\theta(1 - \theta)} = \frac{1}{\theta(1 - \theta)}
 \] Substituting \(Z\) and \(\frac{dz}{d\theta}\) back into our
 transformation formula, we get the prior density for \(\theta\): \[
-f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
+f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
 \]
 
 \textbf{Step 2: Apply Bayes' Theorem} The likelihood of observing \(x\)
@@ -992,7 +990,7 @@ divide this unnormalized numerator by its integral over the support of
 
 Adding the indicator function \(I\{0 < \theta < 1\}\) to explicitly
 state the support, we arrive exactly at the desired formula: \[
-f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) d\theta }
+f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) d\theta }
 \]
 
 \subsection{(b)}\label{b-2}
@@ -1004,9 +1002,6 @@ using numerical discretization over a fine grid. Because
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ numpy }\ImportTok{as}\NormalTok{ np}
-\ImportTok{import}\NormalTok{ scipy.stats }\ImportTok{as}\NormalTok{ stats}
-
 \CommentTok{\# Given parameters}
 \NormalTok{x\_obs }\OperatorTok{=} \DecValTok{0}
 \NormalTok{n }\OperatorTok{=} \DecValTok{1295}
@@ -1021,7 +1016,7 @@ using numerical discretization over a fine grid. Because
 \NormalTok{log\_prior }\OperatorTok{=} \OperatorTok{{-}}\FloatTok{0.5} \OperatorTok{*}\NormalTok{ ((logit\_theta }\OperatorTok{{-}}\NormalTok{ mu)}\OperatorTok{**}\DecValTok{2}\NormalTok{) }\OperatorTok{/}\NormalTok{ sigma2 }\OperatorTok{{-}}\NormalTok{ np.log(theta\_grid) }\OperatorTok{{-}}\NormalTok{ np.log(}\DecValTok{1} \OperatorTok{{-}}\NormalTok{ theta\_grid)}
 
 \CommentTok{\# Calculate the log{-}likelihood (using scipy to safely handle 0*log(0) if x were \textgreater{} 0)}
-\NormalTok{log\_likelihood }\OperatorTok{=}\NormalTok{ stats.binom.logpmf(x\_obs, n, theta\_grid)}
+\NormalTok{log\_likelihood }\OperatorTok{=}\NormalTok{ binom.logpmf(x\_obs, n, theta\_grid)}
 
 \CommentTok{\# Unnormalized log{-}posterior}
 \NormalTok{log\_posterior }\OperatorTok{=}\NormalTok{ log\_prior }\OperatorTok{+}\NormalTok{ log\_likelihood}
@@ -1060,10 +1055,6 @@ compare the results.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\ImportTok{import}\NormalTok{ pymc }\ImportTok{as}\NormalTok{ pm}
-\ImportTok{import}\NormalTok{ arviz }\ImportTok{as}\NormalTok{ az}
-\ImportTok{import}\NormalTok{ matplotlib.pyplot }\ImportTok{as}\NormalTok{ plt}
-
 \CommentTok{\# PyMC requires the standard deviation, not variance}
 \NormalTok{sigma }\OperatorTok{=}\NormalTok{ np.sqrt(sigma2)}
 
@@ -1253,9 +1244,9 @@ total log marginal likelihood is: \[
 \]
 
 \emph{(Note: We would load the dataset here in Python to compute this
-over a grid of \(\alpha\) and \(\beta\). Since the raw dataset isn't
+over a grid of} \(\alpha\) and \(\beta\). Since the raw dataset isn't
 provided in the prompt, here is the boilerplate code to execute the grid
-search once \texttt{X} and \texttt{n} are defined).}
+search once \texttt{X} and \texttt{n} are defined).
 
 \begin{Shaded}
 \begin{Highlighting}[]
