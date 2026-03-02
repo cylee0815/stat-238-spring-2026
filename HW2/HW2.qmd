@@ -26,7 +26,7 @@ import numpy as np
 import pymc as pm
 import arviz as az
 import matplotlib.pyplot as plt
-from scipy.stats import beta, gamma, binom
+from scipy.stats import beta, gamma, binom, nbinom
 from scipy.optimize import brentq, fsolve
 from scipy.special import comb, betaln, gammaln, beta as B
 ```
@@ -592,14 +592,14 @@ empirical fraction, smoothing the estimate.
 
 ### Visualizing Laplace Smoothing
 
-Let's simulate a sequence of 20 trials where every single outcome is a
+Let's simulate a sequence of 100 trials where every single outcome is a
 success ($x_i=1$). Notice how the Laplace rule prevents the predictive
 probability from immediately jumping to 100% certainty after just a few
 trials.
 
 ```{python}
-# Simulate 20 flips of a completely rigged coin (always heads, x=1)
-n_flips = 20
+# Simulate 100 flips of a completely rigged coin (always heads, x=1)
+n_flips = 100
 flips = np.ones(n_flips)
 
 # Track the cumulative sum of successes
@@ -607,74 +607,88 @@ S_n = np.cumsum(flips)
 n = np.arange(1, n_flips + 1)
 
 # Calculate naive estimate (x/n) and Laplace estimate
-naive_estimates = S_n / n
-laplace_estimates = (1 + S_n) / (n + 2)
+naive_est = S_n / n
+laplace_est = (1 + S_n) / (n + 2)
 
 # Plotting
-plt.figure(figsize=(8, 5))
-plt.plot(n, naive_estimates, label='Naive Estimate ($x/n$)', marker='o', linestyle='--')
-plt.plot(n, laplace_estimates, label='Laplace Rule (Posterior Mean)', marker='s')
+plt.figure(figsize=(10, 5))
+plt.plot(n, naive_est, label='Naive Estimate ($x/n$)', marker='o', linestyle='--')
+plt.plot(n, laplace_est, label='Laplace Rule (Post. Mean)', marker='s')
 
 plt.title('Predictive Probability of Success (Observing 100% Successes)')
 plt.xlabel('Number of Trials ($n$)')
 plt.ylabel('Estimated Probability of Next Success')
 plt.ylim(0.5, 1.05)
-plt.xticks(np.arange(1, n_flips + 1, step=2))
+plt.xticks(np.arange(1, n_flips + 1, step=10))
 plt.legend()
 plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()
 ```
 
+\newpage
+
 # Problem 4
 
 ## (a)
 
 We are given a Bayesian model with a Binomial likelihood and a prior on
-the logit transformation of $\theta$: - **Prior:**
-$Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)$ -
-**Likelihood:** $X \mid \theta \sim \text{Binomial}(n, \theta)$
+the logit transformation of $\theta$: 
+- **Prior:** $Z := \log \left( \frac{\theta}{1 - \theta} \right) \sim N(\mu, \sigma^2)$ 
+- **Likelihood:** $X \mid \theta \sim \text{Binomial}(n, \theta)$
 
-**Step 1: Find the Prior Density for** $\theta$ We know $Z$ is normally
-distributed, so its density is: $$
+**Step 1: Find the Prior Density for** $\theta$ 
+We know $Z$ is normally distributed, so its density is:
+
+$$
 f_Z(z) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} (z - \mu)^2 \right)
-$$ To find the probability density function for $\theta$,
-$f_\theta(\theta)$, we must use the change of variables formula with a
-monotone function $g$ and $g^{-1}$: $$
+$$
+
+To find the probability density function for $\theta$, $f_\theta(\theta)$, we must use the change of variables formula with a monotone function $g$ and $g^{-1}$:
+
+$$
 f_\theta(\theta) = f_Z(z(\theta)) \left| \frac{dz}{d\theta} \right|
-$$ First, calculate the derivative (the Jacobian) of the logit function
-with respect to $\theta$: $$
+$$
+
+First, calculate the derivative (the Jacobian) of the logit function with respect to $\theta$:
+
+$$
 \frac{dz}{d\theta} = \frac{d}{d\theta} \left[ \log(\theta) - \log(1 - \theta) \right] = \frac{1}{\theta} - \left( \frac{-1}{1 - \theta} \right) = \frac{1}{\theta} + \frac{1}{1 - \theta} = \frac{1-\theta+\theta}{\theta(1 - \theta)} = \frac{1}{\theta(1 - \theta)}
-$$ Substituting $Z$ and $\frac{dz}{d\theta}$ back into our
-transformation formula, we get the prior density for $\theta$: $$
+$$
+
+Substituting $Z$ and $\frac{dz}{d\theta}$ back into our transformation formula, we get the prior density for $\theta$:
+
+$$
 f_\theta(\theta) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) \frac{1}{\theta(1 - \theta)}
 $$
 
-**Step 2: Apply Bayes' Theorem** The likelihood of observing $x$
-successes in $n$ trials is: $$
-P(X = x \mid \theta) = \binom{n}{x} \theta^x (1 - \theta)^{n-x}
-$$ Bayes' Theorem states that the posterior is proportional to the
-likelihood times the prior: $$
-f_{\theta \mid X=x}(\theta) \propto P(X = x \mid \theta) f_\theta(\theta)
-$$ $$
-f_{\theta \mid X=x}(\theta) \propto \binom{n}{x} \theta^x (1 - \theta)^{n-x} \frac{1}{\sqrt{2\pi\sigma^2}} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right)
-$$ We can drop constants that do not depend on $\theta$ (like
-$\binom{n}{x}$ and $\frac{1}{\sqrt{2\pi\sigma^2}}$). To ensure the
-posterior is a valid probability density function (integrating to 1), we
-divide this unnormalized numerator by its integral over the support of
-$\theta$, which is $(0, 1)$.
+**Step 2: Apply Bayes' Theorem** The likelihood of observing $x$ successes in $n$ trials is:
 
-Adding the indicator function $I\{0 < \theta < 1\}$ to explicitly state
-the support, we arrive exactly at the desired formula: $$
+$$
+P(X = x \mid \theta) = \binom{n}{x} \theta^x (1 - \theta)^{n-x}
+$$
+
+Bayes' Theorem states that the posterior is proportional to the likelihood times the prior:
+
+$$
+f_{\theta \mid X=x}(\theta) \propto P(X = x \mid \theta) f_\theta(\theta)
+$$
+
+$$
+f_{\theta \mid X=x}(\theta) \propto \binom{n}{x} \theta^x (1 - \theta)^{n-x} \frac{1}{\sqrt{2\pi\sigma^2}} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right)
+$$
+
+We can drop constants that do not depend on $\theta$ (like $\binom{n}{x}$ and $\frac{1}{\sqrt{2\pi\sigma^2}}$). To ensure the posterior is a valid probability density function (integrating to 1), we divide this unnormalized numerator by its integral over the support of $\theta$, which is $(0, 1)$.
+
+Adding the indicator function $I\{0 < \theta < 1\}$ to explicitly state the support, we arrive exactly at the desired formula:
+
+$$
 f_{\theta \mid X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) I\{0 < \theta < 1\} }{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2} \left(\log (\frac{\theta}{1 - \theta}) - \mu \right)^2 \right) d\theta }
 $$
 
 ## (b)
 
-We calculate the posterior mean, variance, and 95% credible interval
-using numerical discretization over a fine grid. Because $\mu = -9.273$,
-the true probability $\theta$ is extremely small (around $0.00009$), so
-our grid must be very dense near zero.
+We calculate the posterior mean, variance, and 95% credible interval using numerical discretization over a fine grid. Because $\mu = -9.273$, the true probability $\theta$ is extremely small (around $0.00009$), so our grid must be very dense near zero.
 
 ```{python}
 # Given parameters
@@ -684,14 +698,14 @@ mu = -9.27308950
 sigma2 = 0.09259668
 
 # Create a dense grid near 0
-theta_grid = np.linspace(1e-8, 0.001, 20000)
+thetas = np.linspace(1e-8, 0.001, 20000)
 
 # Calculate the log-prior density
-logit_theta = np.log(theta_grid / (1 - theta_grid))
-log_prior = -0.5 * ((logit_theta - mu)**2) / sigma2 - np.log(theta_grid) - np.log(1 - theta_grid)
+logit_theta = np.log(thetas / (1 - thetas))
+log_prior = -0.5 * ((logit_theta - mu)**2) / sigma2 - np.log(thetas) - np.log(1 - thetas)
 
 # Calculate the log-likelihood (using scipy to safely handle 0*log(0) if x were > 0)
-log_likelihood = binom.logpmf(x_obs, n, theta_grid)
+log_likelihood = binom.logpmf(x_obs, n, thetas)
 
 # Unnormalized log-posterior
 log_posterior = log_prior + log_likelihood
@@ -701,15 +715,15 @@ posterior_unnorm = np.exp(log_posterior - np.max(log_posterior))
 posterior_probs = posterior_unnorm / np.sum(posterior_unnorm)
 
 # 1. Posterior Mean
-post_mean = np.sum(theta_grid * posterior_probs)
+post_mean = np.sum(thetas * posterior_probs)
 
 # 2. Posterior Variance
-post_var = np.sum((theta_grid - post_mean)**2 * posterior_probs)
+post_var = np.sum((thetas - post_mean)**2 * posterior_probs)
 
-# 3. 95% Credible Interval
+# 3. 95% Credible Interval (Equal-tailed)
 cumulative_probs = np.cumsum(posterior_probs)
-lower_bound = theta_grid[np.searchsorted(cumulative_probs, 0.025)]
-upper_bound = theta_grid[np.searchsorted(cumulative_probs, 0.975)]
+lower_bound = thetas[np.searchsorted(cumulative_probs, 0.025)]
+upper_bound = thetas[np.searchsorted(cumulative_probs, 0.975)]
 
 print(f"Numerical Mean:      {post_mean:.8f}")
 print(f"Numerical Variance:  {post_var:.12f}")
@@ -718,11 +732,9 @@ print(f"95% Cred. Interval:  [{lower_bound:.8f}, {upper_bound:.8f}]")
 
 ## (c)
 
-Now, we solve the same problem using PyMC MCMC sampling and visually
-compare the results.
+Now, we solve the same problem using PyMC MCMC sampling and visually compare the results.
 
 ```{python}
-#| eval: false
 # PyMC requires the standard deviation, not variance
 sigma = np.sqrt(sigma2)
 
@@ -737,24 +749,49 @@ with pm.Model() as logit_model:
     obs = pm.Binomial('obs', n=n, p=theta_var, observed=x_obs)
     
     # Draw MCMC samples
-    trace = pm.sample(5000, tune=2000, target_accept=0.95, return_inferencedata=True, progressbar=False)
+    trace = pm.sample(5000, 
+                      tune=2000, 
+                      target_accept=0.95, 
+                      return_inferencedata=True, 
+                      progressbar=False)
 
-# Extract summary statistics
-summary = az.summary(trace, var_names=['theta'], hdi_prob=0.95)
+# Extract summary statistics and force it to show 8 decimal places
+summary = az.summary(trace, var_names=['theta'], hdi_prob=0.95, round_to=8)
+print("ArviZ Summary:")
 print(summary)
 
-# --- VISUAL COMPARISON ---
-# Extract PyMC samples for plotting
+# --- EXACT COMPARISON ---
+# Extract PyMC samples directly to bypass any display rounding
 theta_samples = trace.posterior['theta'].values.flatten()
 
-plt.figure(figsize=(9, 5))
+# Calculate PyMC 95% Credible Interval (Equal-tailed to match part b)
+pymc_lower = np.percentile(theta_samples, 2.5)
+pymc_upper = np.percentile(theta_samples, 97.5)
+
+print("\n--- Direct Trace Calculations ---")
+print(f"PyMC Mean:           {np.mean(theta_samples):.8f}")
+print(f"PyMC Variance:       {np.var(theta_samples):.12f}")
+print(f"PyMC Std Dev:        {np.std(theta_samples):.8f}")
+print(f"PyMC 95% CI:         [{pymc_lower:.8f}, {pymc_upper:.8f}]")
+
+# --- VISUAL COMPARISON ---
+plt.figure(figsize=(10, 6))
 # Plot numerical discretization as a line (scaled to match density)
-grid_spacing = theta_grid[1] - theta_grid[0]
+grid_spacing = thetas[1] - thetas[0]
 numerical_density = posterior_probs / grid_spacing
-plt.plot(theta_grid, numerical_density, color='red', lw=2.5, label='Numerical Discretization (Exact)')
+plt.plot(thetas, 
+         numerical_density, 
+         color='red', 
+         lw=2.5, 
+         label='Numerical Discretization (Exact)')
 
 # Plot PyMC samples as a KDE/Histogram
-plt.hist(theta_samples, bins=100, density=True, alpha=0.5, color='blue', label='PyMC MCMC Samples')
+plt.hist(theta_samples, 
+         bins=100, 
+         density=True, 
+         alpha=0.5, 
+         color='blue', 
+         label='PyMC MCMC Samples')
 
 plt.title('Comparison of Posterior Approximations: Numerical vs. MCMC')
 plt.xlabel(r'$\theta$ (Probability)')
@@ -766,196 +803,386 @@ plt.tight_layout()
 plt.show()
 ```
 
-**Conclusion for Part (c):** When running the PyMC model, you will
-notice that the `mean`, `sd` (square root of variance), and `hdi` ranges
-almost perfectly match the `post_mean`, standard deviation, and credible
-interval computed in part (b). The histogram of the PyMC trace overlaps
-exactly with the density curve derived from numerical integration,
-confirming that both the discrete grid approximation and the continuous
-MCMC sampler successfully mapped the exact same underlying mathematical
-posterior.
+**Conclusion for Part (c):**
+Because the true value of $\theta$ is on the order of $10^{-5}$, default summary tables often round the results to **0.000**. However, by forcing the output to display 8 decimal places and calculating the mean, variance, and 95% credible interval directly from the trace array, we can see that the MCMC results perfectly match the discrete numerical grid approximation. The histogram of the PyMC trace overlaps exactly with the density curve derived from numerical integration, confirming that both methods successfully mapped the exact same underlying mathematical posterior.
+
+\newpage
 
 # Problem 5
 
 ## (a)
 
-We are given the following model: - **Prior:**
-$\theta \sim \text{Gamma}(\alpha, \beta)$ with density
-$f(\theta) \propto \theta^{\alpha - 1} \exp(-\beta \theta) I\{\theta > 0\}$ -
-**Likelihood:** $Y \mid \theta \sim \text{Poisson}(k \theta)$ with PMF
-$P(Y = y \mid \theta) = \frac{(k\theta)^y \exp(-k\theta)}{y!}$
+We are given the following hierarchical model:
 
-By Bayes' theorem, the posterior density is proportional to the prior
-times the likelihood: $$
-\begin{aligned}
-f(\theta \mid y) &\propto f(\theta) \cdot P(Y = y \mid \theta) \\
-&\propto \left( \theta^{\alpha - 1} \exp(-\beta \theta) \right) \left( \theta^y \exp(-k\theta) \right) \\
-&= \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta)
-\end{aligned}
-$$ We recognize this as the kernel of a Gamma distribution with shape
-parameter $\alpha + y$ and rate parameter $\beta + k$. Thus, $$
-\theta \mid Y = y \sim \text{Gamma}(\alpha + y, \beta + k).
+- **Prior:** $\theta \sim \text{Gamma}(\alpha, \beta)$ with density $f(\theta) \propto \theta^{\alpha - 1} \exp(-\beta \theta) I\{\theta > 0\}$ 
+- **Likelihood:** $Y \mid \theta \sim \text{Poisson}(k \theta)$ with probability mass function $P(Y = y \mid \theta) = \frac{(k\theta)^y \exp(-k\theta)}{y!}$
+
+By Bayes' theorem, the posterior density is proportional to the prior times the likelihood: 
+$$
+f(\theta \mid y) \propto f(\theta) \cdot P(Y = y \mid \theta)
+$$
+$$
+f(\theta \mid y) \propto \left( \theta^{\alpha - 1} \exp(-\beta \theta) \right) \cdot \left( \frac{k^y \theta^y \exp(-k\theta)}{y!} \right)
+$$
+Since we are only interested in the shape of the distribution with respect to $\theta$, we can drop any multiplicative terms that do not contain $\theta$ (specifically $\frac{k^y}{y!}$). Grouping the remaining $\theta$ terms and exponential terms together:
+$$
+f(\theta \mid y) \propto \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta)
+$$
+We recognize this functional form as the exact unnormalized kernel of a Gamma distribution with updated shape parameter $\alpha + y$ and updated rate parameter $\beta + k$. Thus, the exact posterior distribution is:
+$$
+\theta \mid Y = y \sim \text{Gamma}(\alpha + y, \beta + k)
 $$
 
 ## (b)
 
-The marginal distribution of $Y$ is obtained by integrating the joint
-density over all possible values of $\theta$: $$
-\begin{aligned}
-P(Y = y) &= \int_0^\infty P(Y = y \mid \theta) f(\theta) \, d\theta \\
-&= \int_0^\infty \frac{(k\theta)^y \exp(-k\theta)}{y!} \frac{\beta^\alpha}{\Gamma(\alpha)} \theta^{\alpha - 1} \exp(-\beta \theta) \, d\theta \\
-&= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \int_0^\infty \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta) \, d\theta
-\end{aligned}
-$$ The integral is the unnormalized core of a
-$\text{Gamma}(\alpha + y, \beta + k)$ distribution. We know that
-$\int_0^\infty x^{A-1} e^{-Bx} dx = \frac{\Gamma(A)}{B^A}$. Using this
-fact: $$
-\begin{aligned}
-P(Y = y) &= \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \frac{\Gamma(\alpha + y)}{(\beta + k)^{\alpha + y}} \\
-&= \frac{\Gamma(\alpha + y)}{\Gamma(\alpha) y!} \left(\frac{k}{\beta + k} \right)^y \left(\frac{\beta}{\beta + k} \right)^{\alpha}
-\end{aligned}
-$$ This holds for $y = 0, 1, 2, \dots$, representing a Negative Binomial
-distribution.
+The marginal distribution of $Y$ is obtained by integrating the joint density $f(\theta, y)$ over all possible values of $\theta$: 
+$$
+P(Y = y) = \int_0^\infty P(Y = y \mid \theta) f(\theta) \, d\theta
+$$
+Substituting the full formulas for the Poisson PMF and the Gamma density:
+$$
+P(Y = y) = \int_0^\infty \frac{(k\theta)^y \exp(-k\theta)}{y!} \frac{\beta^\alpha}{\Gamma(\alpha)} \theta^{\alpha - 1} \exp(-\beta \theta) \, d\theta
+$$
+We pull all constants that do not depend on $\theta$ out of the integral:
+$$
+P(Y = y) = \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \int_0^\infty \theta^{\alpha + y - 1} \exp(-(\beta + k)\theta) \, d\theta
+$$
+The integral is the unnormalized core of a $\text{Gamma}(\alpha + y, \beta + k)$ distribution. We know from the properties of the Gamma function that $\int_0^\infty x^{A-1} e^{-Bx} \, dx = \frac{\Gamma(A)}{B^A}$. Applying this property where $A = \alpha + y$ and $B = \beta + k$:
+$$
+P(Y = y) = \frac{k^y \beta^\alpha}{y! \Gamma(\alpha)} \frac{\Gamma(\alpha + y)}{(\beta + k)^{\alpha + y}}
+$$
+To match the desired formulation, we can split the denominator term $(\beta + k)^{\alpha + y}$ into $(\beta + k)^\alpha \cdot (\beta + k)^y$ and rearrange the fractions:
+$$
+P(Y = y) = \frac{\Gamma(\alpha + y)}{\Gamma(\alpha) y!} \left(\frac{k}{\beta + k} \right)^y \left(\frac{\beta}{\beta + k} \right)^{\alpha}
+$$
+This holds for $y = 0, 1, 2, \dots$, representing a **Negative Binomial distribution**. Specifically, it models the number of successes $y$ before $\alpha$ failures occur, given a success probability of $p = \frac{k}{\beta + k}$.
+
+### Visual Verification via Monte Carlo Simulation
+We can write a quick simulation to verify this. If we generate samples hierarchically (first drawing $\theta$ from the Gamma prior, then drawing $Y$ from the Poisson likelihood), the resulting empirical distribution of $Y$ should perfectly match the analytical Negative Binomial PMF we just derived.
+
+```{python}
+# Set arbitrary positive constants for the simulation
+alpha_val = 5.0
+beta_val = 2.0
+k_val = 3.0
+
+# 1. Simulate the hierarchical model
+n_sims = 100000
+# Draw thetas from Gamma(alpha, rate=beta)
+# Note: numpy's gamma function uses shape (alpha) and scale (1/beta)
+thetas = np.random.gamma(shape=alpha_val, scale=1/beta_val, size=n_sims)
+# Draw Ys from Poisson(k * theta)
+Y_sim = np.random.poisson(lam=k_val * thetas)
+
+# 2. Calculate the Analytical Marginal Negative Binomial PMF
+y_vals = np.arange(0, np.max(Y_sim))
+# nbinom in scipy uses n (number of failures) and p (prob of success in a single trial)
+# Based on our derivation: n = alpha, p = beta / (beta + k)
+prob_success = beta_val / (beta_val + k_val)
+analytical_pmf = nbinom.pmf(y_vals, n=alpha_val, p=prob_success)
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.hist(Y_sim,
+         bins=np.arange(-0.5, np.max(Y_sim)+0.5, 1),
+         density=True,
+         alpha=0.6,
+         label='Simulated Marginal $Y$ (Hierarchical)', color='dodgerblue')
+plt.plot(y_vals,
+         analytical_pmf,
+         'ro-',
+         label='Analytical Negative Binomial PMF',
+         markersize=4)
+plt.title('Verification of Marginal Distribution: Simulation vs Analytical Proof')
+plt.xlabel('Y (Counts)')
+plt.ylabel('Probability Density')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+\newpage
 
 # Problem 6
 
 ## (a)
 
-Let $\theta$ be the mortality rate per 100,000 people. We are given: 1.
-The typical rate (mean) is
-$\mathbb{E}[\theta] = \frac{\alpha}{\beta} = 0.6$. 2. Rates above 1.5
-are rare. We can interpret "rare" as a 1% probability:
-$P(\theta > 1.5) = 0.01$.
+Let $\theta$ be the true underlying long-term asthma mortality rate per 100,000 people. We need to elicit the parameters $\alpha$ and $\beta$ for a $\text{Gamma}(\alpha, \beta)$ prior based on two pieces of expert information:
 
-We can solve for $\alpha$ and $\beta$ numerically, similar to Problem 1.
+1. The typical (mean) rate is $0.6$. The mean of a Gamma distribution is $\frac{\alpha}{\beta}$, so we have $\frac{\alpha}{\beta} = 0.6 \implies \beta = \frac{\alpha}{0.6}$.
+2. Rates above $1.5$ are "rare." 
+
+**Approach 1: Method of Moments (Heuristic)**
+
+We can use the Method of Moments to find an analytical solution by interpreting "rare" using the standard 3-sigma rule. If 1.5 is 3 standard deviations above the mean, we set up the following equation for the standard deviation $\sigma$:
+$$\mu + 3\sigma = 1.5 \implies 0.6 + 3\sigma = 1.5 \implies 3\sigma = 0.9 \implies \sigma = 0.3$$
+This gives us a variance of $\text{Var}(\theta) = \sigma^2 = 0.09$. 
+Using the theoretical mean and variance of the Gamma distribution, we can solve the system of equations:
+$$\mathbb{E}[\theta] = \frac{\alpha}{\beta} = 0.6$$
+$$\text{Var}(\theta) = \frac{\alpha}{\beta^2} = 0.09$$
+Dividing the mean by the variance gives $\beta = 6.667$. Substituting $\beta$ back into the mean equation gives $\alpha = 4.0$. This Method of Moments approach suggests a prior of $\text{Gamma}(4.0, 6.67)$.
+
+**Approach 2: Exact Numerical CDF (Stability Check)**
+Because "rare" is subjective, we should perform a **stability check** by testing different probabilistic interpretations of the word: a 5% tail probability, a 1% tail probability, and a 0.1% tail probability. 
+
+We can solve for $\alpha$ and $\beta$ numerically for each interpretation.
 
 ```{python}
-def objective(alpha):
-    # If mean = 0.6, then beta = alpha / 0.6
-    beta_param = alpha / 0.6
-    # We want P(theta > 1.5) = 0.01, so CDF at 1.5 should be 0.99
-    # scipy gamma takes scale = 1/beta
-    return gamma.cdf(1.5, a=alpha, scale=1/beta_param) - 0.99
+# Different interpretations of "rare"
+rare_probs = [0.05, 0.01, 0.001]
+labels = ["5% (Moderately Rare)", "1% (Rare)", "0.1% (Very Rare)"]
+colors = ['green', 'gray', 'purple']
 
-# Solve for alpha
-alpha_opt = fsolve(objective, x0=2)[0]
-beta_opt = alpha_opt / 0.6
+results = {}
+theta_vals = np.linspace(0, 3, 500)
 
-print(f"Optimal alpha: {alpha_opt:.3f}")
-print(f"Optimal beta:  {beta_opt:.3f}")
+plt.figure(figsize=(10, 6))
+mean, sd = 0.6, 0.3
+b_mom = mean / sd ** 2
+a_mom = mean ** 2 / sd ** 2
+
+
+# Plot the MoM approximation first
+mom_pdf = gamma.pdf(theta_vals, a=a_mom, scale=1/b_mom)
+plt.plot(theta_vals,
+         mom_pdf,
+         label=f'MoM Approximation: $\\alpha$={a_mom: .2f}, $\\beta$={b_mom: .2f}',
+         color='black',
+         linestyle='--',
+         lw=4)
+
+# Loop through each interpretation and solve for alpha, beta
+for p, label, color in zip(rare_probs, labels, colors):
+    def objective(alpha):
+        beta_param = alpha / 0.6
+        # CDF at 1.5 should be (1 - p)
+        return gamma.cdf(1.5, a=alpha, scale=1/beta_param) - (1 - p)
+    
+    # Solve for alpha using an initial guess of 2
+    alpha_opt = fsolve(objective, x0=2)[0]
+    beta_opt = alpha_opt / 0.6
+    results[label] = (alpha_opt, beta_opt)
+    
+    # Plot the resulting prior
+    pdf = gamma.pdf(theta_vals, a=alpha_opt, scale=1/beta_opt)
+    plt.plot(theta_vals,
+             pdf,
+             label=f'{label}: $\\alpha$={alpha_opt:.2f}, $\\beta$={beta_opt:.2f}',
+             color=color,
+             lw=2)
+
+plt.axvline(0.6, color='black', linestyle=':', label='Mean = 0.6')
+plt.axvline(1.5, color='red', linestyle='--', alpha=0.5, label='Threshold = 1.5')
+plt.title('Sensitivity of Prior: Method of Moments vs. Exact Tail Probabilities')
+plt.xlabel(r'$\theta$ (Mortality Rate per 100k)')
+plt.ylabel('Density')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# Print the exact numerical parameters
+print("--- Prior Parameters Based on Definition of 'Rare' ---")
+for k, v in results.items():
+    print(f"{k:<22}: alpha = {v[0]:.2f}, beta = {v[1]:.2f}")
 ```
 
-Based on this, a reasonable prior is
-$\theta \sim \text{Gamma}(3.3, 5.5)$.
+**Conclusion for Prior Selection:** The stability check reveals that stricter definitions of "rare" require a much higher variance (smaller $\alpha$ and $\beta$) to push enough probability mass past the $1.5$ threshold, while looser definitions result in a tighter peak around the mean of $0.6$. Beside, the Method of Moments approximation ($\alpha=4.0$, $\beta=6.67$) aligns almost perfectly with the exact 1% tail probability interpretation ($\alpha=4.05$, $\beta=6.75$). We have strong justification to proceed with the precise 1% numerical parameters. For the remainder of this problem, we will proceed with the standard **1% interpretation**, rounding to two decimal place for simplicity:
+$$
+\theta \sim \text{Gamma}(4.05, 6.75)
+$$
 
 ## (b)
 
-The population is 200,000, which is exactly $2 \times 100,000$. Thus,
-$k = 2$. We observe $y = 3$ deaths in one year. Using the conjugate
-update rule from 5(a): $$
-\theta \mid y \sim \text{Gamma}(\alpha + y, \beta + k) = \text{Gamma}(3.3 + 3, 5.5 + 2) = \text{Gamma}(6.3, 7.5)
+The population of the city is 200,000, which is exactly $2 \times 100,000$ persons. Thus, our exposure multiplier is $k = 2$. We observe $y = 3$ deaths in one year. 
+
+Using the exact Poisson-Gamma conjugate update rule derived in Problem 5(a), our posterior parameters become $\alpha_{\text{post}} = \alpha + y$ and $\beta_{\text{post}} = \beta + k$:
+$$
+\theta \mid y \sim \text{Gamma}(4.05 + 3, 6.75 + 2) = \text{Gamma}(7.05, 8.75)
 $$
 
 ## (c)
 
-Over 10 years, the multiplier becomes $k = 2 \times 10 = 20$. We observe
-$y = 30$ deaths. Using the prior from (a): $$
-\theta \mid y \sim \text{Gamma}(3.3 + 30, 5.5 + 20) = \text{Gamma}(33.3, 25.5)
+Suppose the population remains constant over 10 years. Our new total exposure multiplier becomes $k = 2 \times 10 = 20$. Over this period, we observe $y = 30$ deaths. 
+
+Using the original prior from part (a), our updated 10-year posterior is:
+$$
+\theta \mid y \sim \text{Gamma}(4.05 + 30, 6.75 + 20) = \text{Gamma}(34.05, 26.75)
 $$
 
 ## (d)
 
-**Similarities:** Both posteriors use the same prior structure and push
-the expected value towards the observed data mean. **Differences:** The
-10-year posterior is much narrower (lower variance) than the 1-year
-posterior. In the 1-year case, the data ($3/2 = 1.5$) was pulled heavily
-by the prior ($0.6$), yielding a posterior mean of $6.3 / 7.5 = 0.84$.
-In the 10-year case, the larger sample size dominates the prior,
-bringing the posterior mean to $33.3 / 25.5 = 1.30$, which is much
-closer to the raw empirical rate of $30/20 = 1.5$. The increased data
-significantly reduces our uncertainty.
+**Similarities:** Both posteriors belong to the same Gamma family (due to conjugacy). In both cases, the posterior mean is a weighted compromise between the prior mean ($0.6$) and the Maximum Likelihood Estimate (MLE) of the data ($\frac{3}{2} = 1.5$ for year one, and $\frac{30}{20} = 1.5$ for year ten).
+
+**Differences:** The 10-year posterior is substantially narrower (lower variance) than the 1-year posterior. In the 1-year case, the data was relatively sparse, so the posterior mean was pulled heavily toward the prior ($7.05 / 8.75 = 0.81$). In the 10-year case, the larger sample size dominates the prior distribution, bringing the posterior mean ($34.05 / 26.75 = 1.27$) much closer to the raw empirical rate of $1.5$. The accumulation of 10 years of data significantly reduces our uncertainty.
+
+```{python}
+# Define the grid for theta
+theta_vals = np.linspace(0, 3, 500)
+
+# Calculate PDFs using the updated 1% "Rare" prior
+prior_pdf = gamma.pdf(theta_vals, a=4.05, scale=1/6.75)
+post_1yr_pdf = gamma.pdf(theta_vals, a=7.05, scale=1/8.75)
+post_10yr_pdf = gamma.pdf(theta_vals, a=34.05, scale=1/26.75)
+
+# Plotting
+plt.figure(figsize=(10, 6))
+plt.plot(theta_vals,
+         prior_pdf,
+         label='Prior: Gamma(4.05, 6.75)',
+         color='gray',
+         linestyle='--')
+plt.plot(theta_vals,
+         post_1yr_pdf,
+         label='1-Year Posterior: Gamma(7.05, 8.75)',
+         color='orange')
+plt.plot(theta_vals,
+         post_10yr_pdf,
+         label='10-Year Posterior: Gamma(34.05, 26.75)',
+         color='blue')
+
+# Add vertical lines for the means
+plt.axvline(0.6, color='gray', linestyle=':', alpha=0.6)
+plt.axvline(7.05/8.75, color='orange', linestyle=':', alpha=0.6)
+plt.axvline(34.05/26.75, color='blue', linestyle=':', alpha=0.6)
+
+plt.title('Shift in Posterior Distribution as Data Accumulates')
+plt.xlabel(r'$\theta$ (Mortality Rate per 100k)')
+plt.ylabel('Density')
+plt.legend()
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+```
+
+\newpage
 
 # Problem 7
 
 ## (a)
 
-The binomial distribution $\text{Bin}(n, p)$ models the number of
-successes in $n$ independent trials with probability $p$. If $n$ is very
-large and $p$ is very small, the Poisson limit theorem (or Le Cam's
-theorem) states that the binomial distribution is well-approximated by a
-Poisson distribution with mean $\lambda = np$.
+The binomial distribution $\text{Bin}(n, p)$ models the number of successes in $n$ independent trials with probability $p$. If $n$ is very large and $p$ is very small, Le Cam's theorem states that the binomial distribution is well-approximated by a Poisson distribution with mean $\lambda = np$. Mathematically, the sum of the absolute differences between the two probability mass functions is bounded by $2n p^2$. 
 
-For the kidney cancer dataset, $n_i$ (county population) is large, and
-$\theta_i$ (death rate per person) is extremely small. Therefore,
-letting $\lambda_i = n_i \theta_i$, we can effectively approximate the
-likelihood $X_i \sim \text{Bin}(n_i, \theta_i)$ as
-$X_i \sim \text{Poisson}(n_i \theta_i)$.
+For the kidney cancer dataset, $n_i$ (county population) is in the tens or hundreds of thousands, and $\theta_i$ (death rate per person) is extremely small (on the order of $10^{-5}$). Because $n_i \theta_i^2 \approx 0$, the bound is exceedingly tight. Therefore, letting $\lambda_i = n_i \theta_i$, we can effectively approximate the exact likelihood $X_i \sim \text{Bin}(n_i, \theta_i)$ with the computationally simpler $X_i \sim \text{Poisson}(n_i \theta_i)$.
+
+
 
 ## (b)
 
-We want to estimate $\alpha$ and $\beta$ by maximizing the marginal
-likelihood. From 5(b), the marginal likelihood for a single county is
-Negative Binomial. Assuming independence across $N$ counties, the total
-log marginal likelihood is: $$
-\ell(\alpha, \beta) = \sum_{i=1}^N \left[ \log \Gamma(\alpha + X_i) - \log \Gamma(\alpha) - \log(X_i!) + X_i \log\left(\frac{n_i}{\beta + n_i}\right) + \alpha \log\left(\frac{\beta}{\beta + n_i}\right) \right]
+We want to estimate $\alpha$ and $\beta$ by maximizing the marginal likelihood. From our derivation in 5(b), the marginal likelihood for a single county under a Poisson-Gamma model is a Negative Binomial distribution. Assuming independence across $N$ counties, the total log marginal likelihood is the sum of the individual log marginal likelihoods:
+$$
+\ell(\alpha, \beta) = \sum_{i=1}^N \left[ \log \Gamma(\alpha + X_i) - \log \Gamma(\alpha) - \log(X_i!) + X_i \log \left(\frac{n_i}{\beta + n_i}\right) + \alpha \log \left(\frac{\beta}{\beta + n_i}\right) \right]
 $$
 
-*(Note: We would load the dataset here in Python to compute this over a
-grid of* $\alpha$ and $\beta$. Since the raw dataset isn't provided in
-the prompt, here is the boilerplate code to execute the grid search once
-`X` and `n` are defined).
+To estimate the parameters via Empirical Bayes, we can compute this log-likelihood over a 2D grid of $\alpha$ and $\beta$ values to find the maximum.
+
+*(Note: We simulate a dataset mimicking the $N \approx 3000$ US counties to demonstrate the working algorithm and plot the likelihood surface).*
 
 ```{python}
-# Placeholder for actual data loading
-# X = data['deaths'].values
-# n = data['population'].values
+# 1. Generate Synthetic Data matching the US Kidney Cancer structure
+np.random.seed(42)
+N_counties = 3000
+n = np.random.randint(1000, 100000, N_counties) # Populations
+true_alpha, true_beta = 2.0, 100000.0 # True rate is approx 2 per 100,000
+theta_true = np.random.gamma(true_alpha, 1/true_beta, N_counties)
+X = np.random.poisson(n * theta_true) # Observed cancer deaths
 
-def log_marginal_likelihood(alpha, beta, X, n):
-    term1 = gammaln(alpha + X) - gammaln(alpha) - gammaln(X + 1)
-    term2 = X * np.log(n / (beta + n))
-    term3 = alpha * np.log(beta / (beta + n))
-    return np.sum(term1 + term2 + term3)
+# 2. Define the grid for alpha and beta
+alphas = np.linspace(0.5, 4.0, 60)
+betas = np.linspace(50000, 150000, 60)
+A, B = np.meshgrid(alphas, betas)
+log_marg_lik = np.zeros(A.shape)
 
-# Define grid
-alphas = np.linspace(1, 20, 100)
-betas = np.linspace(1000, 20000, 100)
+# 3. Compute Log Marginal Likelihood over the grid
+for i in range(A.shape[0]):
+    for j in range(A.shape[1]):
+        a, b = A[i, j], B[i, j]
+        term1 = gammaln(a + X) - gammaln(a) - gammaln(X + 1)
+        term2 = X * np.log(n / (b + n))
+        term3 = a * np.log(b / (b + n))
+        log_marg_lik[i, j] = np.sum(term1 + term2 + term3)
 
-# best_alpha, best_beta = grid_search_maximization(alphas, betas, X, n)
+# 4. Find the Maximum Marginal Likelihood Estimates (MLE)
+max_idx = np.unravel_index(np.argmax(log_marg_lik), log_marg_lik.shape)
+alpha_hat, beta_hat = A[max_idx], B[max_idx]
+
+print(f"Empirical Bayes Estimates:")
+print(f"alpha_hat = {alpha_hat:.3f}")
+print(f"beta_hat  = {beta_hat:.1f}")
+
+# Plotting the 2D Likelihood Surface
+plt.figure(figsize=(10, 6))
+cp = plt.contourf(A, B, log_marg_lik, levels=50, cmap='viridis')
+plt.colorbar(cp, label='Log Marginal Likelihood')
+plt.plot(alpha_hat,
+         beta_hat,
+         'r*',
+         markersize=15,
+         label=r'Maximum $(\hat{\alpha}, \hat{\beta})$')
+plt.title('2D Grid Search for Empirical Bayes Estimates')
+plt.xlabel(r'$\alpha$ (Shape)')
+plt.ylabel(r'$\beta$ (Rate)')
+plt.legend()
+plt.tight_layout()
+plt.show()
 ```
 
 ## (c)
 
-Using the empirical Bayes estimates $\hat{\alpha}$ and $\hat{\beta}$,
-the posterior for each county is
-$\text{Gamma}(\hat{\alpha} + X_i, \hat{\beta} + n_i)$. The posterior
-mean estimate for $\theta_i$ is: $$
+Using the empirical Bayes estimates $\hat{\alpha}$ and $\hat{\beta}$, the posterior for each county under the conjugate Poisson-Gamma model is $\text{Gamma}(\hat{\alpha} + X_i, \hat{\beta} + n_i)$. Therefore, the posterior mean estimate for the cancer rate $\theta_i$ in county $i$ is:
+$$
 \hat{\theta}_i = \frac{\hat{\alpha} + X_i}{\hat{\beta} + n_i}
-$$ Compared to the Beta-Binomial model, the Poisson-Gamma estimates
-should be functionally nearly identical due to the Poisson approximation
-of the Binomial distribution for large $N$ and small $p$. The top 100
-counties ranked by $\hat{\theta}_i$ will likely show heavy overlap,
-effectively identical up to minor numerical precision differences.
+$$
+
+**Comparison to the Beta-Binomial Model:**
+In the Beta-Binomial model we discussed in class, the posterior mean was given by $\frac{\alpha_{BB} + X_i}{\alpha_{BB} + \beta_{BB} + n_i}$. Because the total population $n_i$ is vastly larger than the death count $X_i$ and the prior parameters, the denominator is heavily dominated by $n_i$. Consequently, the estimates $\hat{\theta}_i$ derived from the Poisson-Gamma model will be nearly identical to those derived from the Beta-Binomial model. If we were to rank the top 100 counties by $\hat{\theta}_i$, the list would show virtually $100\%$ overlap, with only negligible numerical differences separating the two methodologies.
 
 ## (d)
 
-For the full Bayes model, we need uninformative priors for $\alpha$ and
-$\beta$. A standard choice for parameters defined on $(0, \infty)$ is a
-vague prior, such as $f(\alpha, \beta) \propto (\alpha + \beta)^{-5/2}$
-(as suggested by Gelman) or independent vague Gamma priors, e.g.,
-$\alpha \sim \text{Gamma}(0.01, 0.01)$ and
-$\beta \sim \text{Gamma}(0.01, 0.01)$.
+For the full Bayes model, we must place an uninformative (or weakly informative) hyperprior on $\alpha$ and $\beta$. Following Gelman's recommendations for hierarchical models, a standard vague prior for scale-like parameters defined on $(0, \infty)$ is $P(\alpha, \beta) \propto (\alpha + \beta)^{-5/2}$. This choice prevents the posterior from collapsing and allows the vast amount of data across the $N$ counties to dictate the shape of the joint posterior.
 
-Using a 2D grid-based discretization approach: 1. Define a 2D grid over
-reasonable ranges for $\alpha$ and $\beta$. 2. Compute the unnormalized
-log posterior for each $(\alpha, \beta)$ pair:
-$\log P(\alpha, \beta \mid X) \propto \ell(\alpha, \beta) + \log P(\alpha, \beta)$.
-3. Exponentiate and normalize the grid to get the joint posterior
-$P(\alpha, \beta \mid X)$. 4. The marginal posterior mean for each
-$\theta_i$ is computed by integrating the conditional posterior mean
-over the joint posterior of $\alpha, \beta$: $$
-\mathbb{E}[\theta_i \mid X] = \sum_{\alpha, \beta} \left( \frac{\alpha + X_i}{\beta + n_i} \right) P(\alpha, \beta \mid X)
+To implement this without a probabilistic programming library, we utilize a 2D grid-based discretization approach.
+
+
+
+**Steps for 2D Grid Discretization:**
+1. Compute the unnormalized log posterior for each $(\alpha, \beta)$ pair on the grid by adding the log-prior to the log-marginal likelihood: 
+   $$ \log P(\alpha, \beta \mid X) = \ell(\alpha, \beta) + \log P(\alpha, \beta) $$
+2. Use the "log-sum-exp" trick to safely exponentiate and normalize the grid, yielding the true discrete joint posterior probabilities $P(\alpha, \beta \mid X)$.
+3. The marginal posterior mean for each $\theta_i$ is computed by marginalizing out $\alpha$ and $\beta$. By the law of total expectation:
+$$
+\mathbb{E}[\theta_i \mid X] = \sum_{\alpha, \beta} \mathbb{E}[\theta_i \mid X, \alpha, \beta] P(\alpha, \beta \mid X) = \sum_{\alpha, \beta} \left( \frac{\alpha + X_i}{\beta + n_i} \right) P(\alpha, \beta \mid X)
 $$
 
+```{python}
+# 1. Define the uninformative prior: P(a, b) ~ (a + b)^(-5/2)
+log_prior = -2.5 * np.log(A + B)
+
+# 2. Compute unnormalized log posterior
+unnorm_log_post = log_marg_lik + log_prior
+
+# 3. Normalize using the log-sum-exp trick to prevent underflow
+max_log_post = np.max(unnorm_log_post)
+post_prob = np.exp(unnorm_log_post - max_log_post)
+post_prob /= np.sum(post_prob) # The sum of probabilities over the 2D grid is now 1
+
+# 4. Compute Full Bayes posterior means for theta_i
+theta_hat_full = np.zeros(N_counties)
+
+for k in range(N_counties):
+    # Weighted average of conditional means over the joint posterior
+    conditional_means = (A + X[k]) / (B + n[k])
+    theta_hat_full[k] = np.sum(post_prob * conditional_means)
+
+# Print out the estimates for the first 5 counties as an example
+print("Full Bayes Posterior Means (First 5 Counties):")
+for k in range(5):
+    print(f"County {k+1}: X_i = {X[k]:<2}, n_i = {n[k]:<5}"
+          f"--> theta_hat = {theta_hat_full[k]:.8f}")
+```
+
+\newpage
 # Problem 8
 
 Here, we implement the full Bayes model from Equation (1) using PyMC and
