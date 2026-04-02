@@ -1,0 +1,440 @@
+%\documentclass[12pt,oneside]{amsart}
+\documentclass{scrartcl}
+
+%\documentclass{article}
+
+\usepackage{amsthm,amsmath,amssymb}
+\usepackage[numbers]{natbib}
+
+%\usepackage[colorlinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,%
+    citecolor=black,%
+    filecolor=black,%
+    linkcolor=black,%
+    urlcolor=black
+}
+\usepackage{hypernat}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.8cm,
+right=2.8cm]{geometry}
+\usepackage{float}
+
+%\setlength{\parskip}{0pt}
+%\setlength{\parsep}{0pt}
+%\setlength{\headsep}{0pt}
+%\setlength{\topskip}{0pt}
+%\setlength{\topmargin}{0pt}
+%\setlength{\topsep}{0pt}
+%\setlength{\partopsep}{0pt}
+
+\linespread{1}
+
+%\usepackage{marvosym}
+
+%\textwidth = 6.5 in \textheight = 9.2 in \oddsidemargin = 0.0 in
+%\evensidemargin = 0.0 in \topmargin = -0.0 in \headheight = 0.0 in
+%\headsep = 0.0in \parskip = 0.0in \parindent = 0.0in
+%\def\baselinestretch{0.871}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{problem}[theorem]{Problem}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{defn}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}{Remark}[section]
+\newtheorem{example}[theorem]{Example}
+
+\newcommand{\E}{{\mathbb E}}
+\newcommand{\se}{{\mathcal{E}}}
+\newcommand{\R}{{\mathbb R}}
+\renewcommand{\P}{{\mathbb P}}
+\newcommand{\ac}{{\mathcal{A}}}
+\newcommand{\A}{{\mathcal{A}}}
+\newcommand{\B}{{\mathcal{B}}}
+\newcommand{\C}{{\mathcal{C}}}
+\newcommand{\M}{{\mathcal{M}}}
+\newcommand{\Mf}{{\mathfrak{M}}}
+\newcommand{\T}{{\mathcal{T}}}
+\newcommand{\Z}{{\mathcal{Z}}}
+\newcommand{\K}{{\mathcal{K}}}
+\newcommand{\lc}{{\mathcal{L}}}
+\newcommand{\Ps}{{\mathcal{P}}}
+\newcommand{\G}{{\mathcal{G}}}
+\newcommand{\pa}{{\mathring{p}}}
+\newcommand{\F}{{\cal F}}
+\newcommand{\samp}{{\mathcal{X}}}
+\newcommand{\X}{{\mathcal{X}}}
+\newcommand{\hi}{{\hat{\Phi}}}
+\newcommand{\data}{{\text{data}}}
+
+\newcounter{rcnt}[section]
+\renewcommand{\thercnt}{(\roman{rcnt})}
+
+\def\qt#1{\qquad\text{#1}}
+
+\def\argmin{\mathop{\rm argmin}}
+\def\argmax{\mathop{\rm argmax}}
+
+
+\setlength{\parskip}{1.4 \medskipamount}
+%\sloppy
+%\linespread{1.3}
+
+\begin{document}
+
+\title{STAT 238 - Bayesian Statistics \\
+ Homework Two} 
+\subtitle{Spring 2026, UC Berkeley}
+\author{Due by 11:59 pm on 27 February 2026 \\ Total Points = 80} 
+
+\date{}
+\maketitle
+
+
+
+% \tableofcontents
+
+\begin{enumerate}
+
+\item Suppose we are interested in the survival rate for a high-risk
+  operation in a new hospital. Experience in other hospitals indicates
+  that the probability of survival for a patient is expected to be
+  around 0.9 and it would be fairly surprising if it were less than
+  0.8 and more than 0.97. 
+  \begin{enumerate}
+  \item If you were to use the $\text{Beta}$ distribution to represent the
+    opinion above, what values of $\alpha$ and $\beta$ would you use,
+    and why? (\textbf{3 points}). 
+  \end{enumerate}
+  Suppose now that $n = 10$ patients are operated on in this new
+  hospital and all of them survived.
+  \begin{enumerate}
+  \item What is the current posterior distribution of the survival
+    rate? (\textbf{2 points})
+  \item  What is the probability that the next patient will survive
+    the operation? (\textbf{3 points})
+  \item What is the probability that there will be 2 or more deaths in
+    the next 20 operations? (\textbf{4 points}) 
+  \end{enumerate}
+
+\item Suppose we have a coin that we know is strongly biased either
+  usually to come up heads or usually to come up tails but we don't
+  know which.
+  \begin{enumerate}
+  \item Express this information in the form of a $\text{Beta}(\alpha,
+    \beta)$ prior. What values of $\alpha$ and $\beta$ would you use
+    and why? (\textbf{2 points})
+   \item We now flip the coin 5 times and it comes up heads in 4 of
+     the 5 flips. Based on your  prior from the previous part, what is
+     the posterior distribution? (\textbf{2  points})
+   \end{enumerate}
+
+ \item Consider the Bayesian model:
+   \begin{align*}
+     &  \text{Prior}: \theta \sim \text{uniform}(0, 1) \\
+     & \text{Likelihood}: X_i \overset{\text{i.i.d}}{\sim}
+       \text{Bernoulli}(\theta). 
+   \end{align*}
+   Prove that
+   \begin{align*}
+     \P \left\{X_{n+1} = 1 \mid X_1= x_1, \dots, X_n = x_n \right\} =
+     \frac{1 + \sum_{i=1}^n x_i}{n+2}. 
+   \end{align*}
+   This is called the Laplace rule of succession (see
+   \url{https://en.wikipedia.org/wiki/Rule_of_succession}). Also
+   compare with Problem 2(e) from Homework One. (\textbf{3 points}). 
+
+ \item Consider the following Bayesian model:
+   \begin{align*}
+&   \text{Prior}: \log \frac{\theta}{1 - \theta} \sim N(\mu,
+  \sigma^2) \\
+& \text{Likelihood}: X \mid \theta \sim \text{Binomial}(n, \theta). 
+   \end{align*}
+   Assume that $n, \mu$ and $\sigma$ are fixed.
+   \begin{enumerate}
+   \item Show that the posterior of $\theta$ is given by (\textbf{2 points}):
+\begin{equation*}
+  f_{\theta | X = x}(\theta) = \frac{ \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2}
+    \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right) I\{0
+  < \theta < 1\}}{\int_0^1 \theta^x (1 - \theta)^{n-x} \frac{1}{\theta(1 - \theta)} \exp \left(-\frac{1}{2 \sigma^2}
+    \left(\log \frac{\theta}{1 - \theta} - \mu \right)^2 \right)
+  d\theta }. 
+\end{equation*}     
+\item Suppose $x = 0$, $n = 1295$, $\mu = -9.27308950$ and $\sigma^{2} =
+0.09259668$.  Calculate the posterior mean, posterior variance and a 95\%
+  credible interval (an interval for which the posterior probability
+  equals .95) by numerical discretization. (\textbf{6 points}).
+ \item Solve part (b) using PyMC. Compare your answer in (b) with the
+   answer obtained by PyMC. (\textbf{3 points}).  
+\end{enumerate}
+
+\item Consider the following Bayesian model:
+  \begin{align*}
+    & \text{Prior}: \theta \sim \text{Gamma}(\alpha, \beta) \text{ with
+      density } \propto \theta^{\alpha - 1} \exp(-\beta \theta)
+      I\{\theta > 0\} \\
+    & \text{Likelihood}: Y \mid \theta \sim \text{Poisson}(k \theta)
+  \end{align*}
+  Treat $\alpha, \beta, k$ as fixed positive constants here.
+  \begin{enumerate}
+  \item Prove that the posterior of $\theta$ is given by: (\textbf{2 points})
+    \begin{align*}
+      \theta \mid Y = y \sim \text{Gamma}(\alpha + y, \beta + k). 
+    \end{align*}
+  \item Prove that the marginal distribution of $Y$ is given by:
+    (\textbf{3 points})
+    \begin{align*}
+      \P\{Y = y\} = \frac{\Gamma(\alpha + y)}{\Gamma(\alpha) y!}
+      \left(\frac{k}{\beta + k} \right)^y \left(\frac{\beta}{\beta +
+      k} \right)^{\alpha} \qt{for $y = 0, 1, 2, \dots$}. 
+    \end{align*}  
+  \end{enumerate}
+\item Suppose that the number of asthma deaths in a certain city in
+   the United States with a population of 200000 in a single year can
+   be modeled by the Poisson distribution with mean $2 \theta$ where
+   $\theta$ represents the true underlying long-term ashtma mortality
+   rate  in the city (measured in cases per 100000 persons per
+   year). Suppose that in a particular year $3$ asthma deaths were
+   observed in the city.
+   \begin{enumerate}
+   \item \textbf{Prior distribution for $\theta$}: Reviews of asthma
+     mortality rates around the world suggest that mortality rates
+     above 1.5 per 100000 people are rare in Western countries, with
+     typical asthma mortality rates around 0.6 per 100000. Suggest a
+     reasonable $\text{Gamma}(\alpha, \beta)$ prior for $\theta$ based
+     on this information. Provide 
+     reasoning for your answer. (\textbf{3 points})
+   \item Compute the posterior distribution of $\theta$ given the data
+     of observing $3$ deaths. (\textbf{3 points})
+   \item Suppose now that ten years of data are obtained for this city
+     (instead of just one) and 30 deaths are observed in the 10
+     years. Calculate the posterior distribution of $\theta$ given
+     this data (you can make assumptions such as the population
+     remaining constant at 200000 over the 10 years etc.). (\textbf{3
+       points})
+   \item Comment on the similarities and differences between the two
+     posteriors calculated above. (\textbf{2 points}). 
+   \end{enumerate}
+
+\item The kidney cancer dataset is analyzed in Section 2.7 of
+  \citet{Gelman2013}. In that section, the authors use Poisson
+  likelihoods with Gamma priors, whereas in class we worked with
+  Binomial likelihoods and Beta priors. Here, we revisit the in-class
+  analysis, replacing the Binomial–Beta model with a Poisson–Gamma
+  model.
+
+  As in class, let $X_i$ denote the total death count due to kidney
+  cancer for county $i$ in the period 1980-89. Also let $n_i$ to be
+  the average population for county $i$ in the same time period. Let
+  $\theta_i$ be an unknown parameter representing the death rate for
+  county $i$ in units of deaths per person per decade. 
+
+  \begin{enumerate}
+  \item Argue that $X_i \sim \text{Poisson}(n_i \theta_i)$. You can
+    use the fact that $Bin(n, p)$ is well-approximated by
+    $\text{Poisson}(np)$ provided $np^2$ is small (see e.g.,
+    \url{https://en.wikipedia.org/wiki/Le_Cam\%27s_theorem}). (\textbf{2
+      points})
+  \item Consider the model:
+    \begin{align*}
+    &  \theta_i \overset{\text{i.i.d}}{\sim} \text{Gamma}(\alpha,
+      \beta) \\
+& X_i \mid \theta_i \sim \text{Poisson}(n_i \theta_i). 
+    \end{align*}
+    Treat $\alpha$ and $\beta$ as unknown parameters, and estimate
+    them by maximizing the marginal likelihood. Use a numerical
+    grid-based discretization approach to compute the maximum marginal
+    likelihood estimates $\hat{\alpha}$ and $\hat{\beta}$ of $\alpha$
+    and $\beta$. (\textbf{4 points}).
+  \item Use $\hat{\alpha}, \hat{\beta}$ derived in (b) above to
+    compute the posterior mean estimates of $\theta_i, i = 1, \dots,
+    N$. Compare these estimates with those derived in class using the
+    Beta-Binomial model. Identify the top 100 counties in terms of
+    $\hat{\theta}_i$, and compare this list with that derived in class using the
+    Beta-Binomial model. (\textbf{3 points})
+  \item Consider the full Bayes model:
+    \begin{equation}\label{fullBayes}
+      \begin{split}
+  & \alpha, \beta \sim \text{uninformative priors} \\
+    &  \theta_i \overset{\text{i.i.d}}{\sim} \text{Gamma}(\alpha,
+      \beta) \\
+  & X_i \mid \theta_i \sim \text{Poisson}(n_i \theta_i).
+    \end{split}
+    \end{equation}
+    for some suitable uninformative priors for $\alpha$ and
+    $\beta$. What uninformative priors would you use and why?
+  Without using any probabilistic programming library, implement
+  Bayesian inference in this model, and compute posterior mean
+  estimates of $\theta_1, \dots, \theta_N$. You can use the
+  discretization based approach discussed in class for the
+  Beta-Binomial model. (\textbf{5 points})
+\item Use PyMC (or some other library) to obtain posterior samples for
+  the model \eqref{fullBayes}, and use these samples to compute the
+  posterior mean esimates of $\theta_1, \dots, \theta_N$. Compare the
+  posterior means with those obtained in part (d) above. (\textbf{3
+    points}) 
+    \end{enumerate}
+  \item Consider the following baseball dataset (from \citet[Chapter
+    1]{Efron}) used in Lectures 10 and 11. The goal is to use the
+    players' early season performance (as indicated by the second
+    column) to predict their end of season performance (as indicated
+    by the third column).
+
+    Use the following model for this dataset:
+\begin{align*}
+ & a, b \overset{\text{i.i.d}}{\sim} \text{uniform}(-\infty, \infty) \\
+ & \theta_i \mid a, b \sim \text{Beta}(a, b) \\
+ & H_i \overset{\text{ind}}{\sim} \text{Bin}(45, \theta_i)
+\end{align*}
+where $H_i$ is the number of hits in the first $45$ at-bats for player
+$i$. 
+
+\begin{enumerate}
+\item Using a numerical discretization approach, implement Bayesian
+  inference in this model, and obtain posterior samples of $\theta_1,
+  \dots, \theta_N$. Then compute the Bayesian estimates (posterior
+  means) for each $\theta_i$. Compute the accuracy of these Bayesian
+  estimates in the two metrics: sum of squares, and sum of absolute
+  values. Compare the accuracies with the naive estimates $H_i/45$, as
+  well as the accuracy of the James-Stein based estimates computed in
+  Lecture 11. (\textbf{5 points}).
+\item Using the posterior samples, compute 95\% credible intervals for
+  each $\theta_i$. Compare these intervals with the actual values of
+  $\theta_i$. How many of the actual $\theta_i$s lie in the intervals?
+  (\textbf{3 points}). 
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{0.25\linewidth}|c|}
+\hline
+\textbf{Player Name} & \textbf{Number of Hits in the first 45 At-Bats} & \textbf{EoSAverage} \\
+\hline
+Clemente     & 18 & .346 \\
+F Robinson   & 17 & .298 \\
+F Howard     & 16 & .276 \\
+Johnstone    & 15 & .222 \\
+Berry        & 14 & .273 \\
+Spencer      & 14 & .270 \\
+Kessinger    & 13 & .263 \\
+L Alvarado   & 12 & .210 \\
+Santo        & 11 & .269 \\
+Swoboda      & 11 & .230 \\
+Unser        & 10 & .264 \\
+Williams     & 10 & .256 \\
+Scott        & 10 & .303 \\
+Petrocelli   & 10 & .264 \\
+E Rodriguez  & 10 & .226 \\
+Campaneris   & 9  & .286 \\
+Munson       & 8  & .316 \\
+Alvis        & 7  & .200 \\
+\hline
+\end{tabular}
+\caption{Some Statistics of 18 Baseball Players from the 1970 Season}
+\label{tab:player_stats}
+\end{table}
+
+
+\item In Lecture 11, we used the following fact:
+  \begin{equation}\label{norm_lik}
+    \begin{split}
+  \theta \sim N(\mu, \tau^2) ~ \text{ and } ~ y \mid \theta \sim
+  N(\theta, \sigma^2) &\implies \theta \mid y \sim N
+  \left(\frac{y/\sigma^2 + \mu/\tau^2}{1/\sigma^2 + 1/\tau^2},
+  \frac{1}{1/\sigma^2 + 1/\tau^2} \right) \\ &\text{ and } y \sim N(\mu,
+                                               \sigma^2 + \tau^2).
+  \end{split}                                               
+\end{equation}
+The goal of this problem is to prove a much more general form of this
+result (this general form will be useful later on in the course).
+
+Suppose $X$ and $Y$ are random
+  vectors with $X \sim N(m_0, Q_0)$ and $Y | X = x \sim N(Bx, R)$. Let
+  $X | Y = y \sim N(m_1, Q_1)$. 
+  \begin{enumerate}
+  \item Show that (\textbf{4 points})
+    \begin{align*}
+&      m_1 = (I + Q_0 B' R^{-1} B)^{-1} m_0 + Q_1 B' R^{-1} y \\ & Q_1
+                                                                   =
+                                                                   (I
+                                                                   +
+                                                                   Q_0
+                                                                   B'
+                                                                   R^{-1}
+                                                                   B)^{-1}
+                                                                   Q_0.  
+    \end{align*}
+  \item Show that (\textbf{3 points})
+    \begin{align*}
+      &m_1 = m_0 + Q_0 B' \left(B Q_0 B' + R \right)^{-1} (y - B m_0) \\
+      &Q_1 = Q_0 - Q_0 B' \left(B Q_0 B' + R
+      \right)^{-1} B Q_0. 
+    \end{align*}
+  \item Show that (\textbf{2 points})
+    \begin{align*}
+      Y \sim N(B m_0, BQ_0B^T + R). 
+    \end{align*}
+  \item Deduce \eqref{norm_lik} as a consequence of the results in
+    parts (a)--(c). (\textbf{2 points})
+  \end{enumerate}
+
+\end{enumerate}
+
+
+\begin{thebibliography}{99}
+
+  
+%\bibitem[Fisher(1934)]{Fisher1934}
+%R.~A. Fisher,
+%\newblock ``Probability, likelihood and quantity of information in the logic of
+%uncertain inference,''
+%\newblock \emph{Proceedings of the Royal Society of London. Series~A,
+%Containing Papers of a Mathematical and Physical Character}, vol.~146,
+%no.~856, pp.~1--8, 1934.
+
+\bibitem[Efron(2010)]{Efron}
+Efron, B. (2010)
+\textit{Large-scale inference: empirical Bayes methods for estimation,
+testing, and prediction}. Cambridge University Press, 2010.
+
+\bibitem[Gelman et~al.(2013)]{Gelman2013}
+Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., and Rubin, D. B. (2013)
+\textit{Bayesian data analysis}. Third edition. Chapman \& Hall/CRC, 2013.
+
+%     \bibitem[Jaynes(2003)]{Jaynes} Jaynes, E. T, (2003)
+%  \textit{Probability theory: the logic of science}. Cambridge
+%  University Press, 2003.
+
+%  \bibitem[Sinai(1992)]{Sinai} Sinai, Y. G, (1992)
+%  \textit{Probability theory: an introductory course}. Springer
+%  Verlag, 1992.  
+
+%\bibitem[{deGroot(1986)}]{DeGrootBlackwell}DeGroot, M. H. (1986)
+%       A conversation with David Blackwell.
+%\newblock \emph{Statistical Science}, \textbf{1}, 40--53.
+
+%         \bibitem[Mosteller(1987)]{Mosteller} Mosteller, F, (1987)
+%  \textit{Fifty challenging problems in probability with
+%    solutions}. Courier Corporation, 1987.
+
+%    \bibitem[MacKay(2003)]{MacKay} MacKay, D. J. C., (2003)
+%  \textit{Information theory, inference, and learning
+%  algorithms}. Cambridge University Press, 2003.
+
+%\bibitem[{Lindley(2013)}]{Lindley}Lindley, D. V. (2013)
+%   \textit{Understanding Uncertainty}. John Wiley and sons, 2013.
+
+
+\end{thebibliography}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
