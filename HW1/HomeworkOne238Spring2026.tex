@@ -1,0 +1,405 @@
+%\documentclass[12pt,oneside]{amsart}
+\documentclass{scrartcl}
+
+%\documentclass{article}
+
+\usepackage{amsthm,amsmath,amssymb}
+\usepackage[numbers]{natbib}
+
+%\usepackage[colorlinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,%
+    citecolor=black,%
+    filecolor=black,%
+    linkcolor=black,%
+    urlcolor=black
+}
+\usepackage{hypernat}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.8cm,
+right=2.8cm]{geometry} 
+
+%\setlength{\parskip}{0pt}
+%\setlength{\parsep}{0pt}
+%\setlength{\headsep}{0pt}
+%\setlength{\topskip}{0pt}
+%\setlength{\topmargin}{0pt}
+%\setlength{\topsep}{0pt}
+%\setlength{\partopsep}{0pt}
+
+\linespread{1}
+
+%\usepackage{marvosym}
+
+%\textwidth = 6.5 in \textheight = 9.2 in \oddsidemargin = 0.0 in
+%\evensidemargin = 0.0 in \topmargin = -0.0 in \headheight = 0.0 in
+%\headsep = 0.0in \parskip = 0.0in \parindent = 0.0in
+%\def\baselinestretch{0.871}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{problem}[theorem]{Problem}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{defn}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}{Remark}[section]
+\newtheorem{example}[theorem]{Example}
+
+\newcommand{\E}{{\mathbb E}}
+\newcommand{\se}{{\mathcal{E}}}
+\newcommand{\R}{{\mathbb R}}
+\renewcommand{\P}{{\mathbb P}}
+\newcommand{\ac}{{\mathcal{A}}}
+\newcommand{\A}{{\mathcal{A}}}
+\newcommand{\B}{{\mathcal{B}}}
+\newcommand{\C}{{\mathcal{C}}}
+\newcommand{\M}{{\mathcal{M}}}
+\newcommand{\Mf}{{\mathfrak{M}}}
+\newcommand{\T}{{\mathcal{T}}}
+\newcommand{\Z}{{\mathcal{Z}}}
+\newcommand{\K}{{\mathcal{K}}}
+\newcommand{\lc}{{\mathcal{L}}}
+\newcommand{\Ps}{{\mathcal{P}}}
+\newcommand{\G}{{\mathcal{G}}}
+\newcommand{\pa}{{\mathring{p}}}
+\newcommand{\F}{{\cal F}}
+\newcommand{\samp}{{\mathcal{X}}}
+\newcommand{\X}{{\mathcal{X}}}
+\newcommand{\hi}{{\hat{\Phi}}}
+\newcommand{\data}{{\text{data}}}
+
+\newcounter{rcnt}[section]
+\renewcommand{\thercnt}{(\roman{rcnt})}
+
+\def\qt#1{\qquad\text{#1}}
+
+\def\argmin{\mathop{\rm argmin}}
+\def\argmax{\mathop{\rm argmax}}
+
+
+\setlength{\parskip}{1.4 \medskipamount}
+%\sloppy
+%\linespread{1.3}
+
+\begin{document}
+
+\title{STAT 238 - Bayesian Statistics \\
+ Homework One} 
+\subtitle{Spring 2026, UC Berkeley}
+\author{Due by 11:59 pm on 13 February 2026 \\ Total Points = 75} 
+
+\date{}
+\maketitle
+
+
+
+% \tableofcontents
+
+\begin{enumerate}
+
+\item    Consider a clinical test for cancer that can yield either a
+  positive (+)  
+  or negative (-) result. Suppose that a patient who truly has cancer
+  has a 1\% chance of slipping past the test undetected. On the other
+  hand, suppose that a cancer-free patient has a 5\% probabiliity of
+  getting a positive test result. Suppose also that 2\% of the
+  population has cancer. Suppose that a patient who has taken the test
+  \textbf{twice} has tested positive both times. 
+  \begin{enumerate}
+  \item What is the probability that this patient has cancer?
+    (\textbf{3 points}). 
+  \item What is the probability that this patient will test positive
+    if they take the test the third time? (\textbf{3 points})
+  \end{enumerate}
+  Describe clearly the probability model you are using to
+  calculate the above probabilities.
+
+\item We have an urn with $N$ balls of which $\theta$ are red and the
+  remaining $N - \theta$ are white. We are assuming that $N$ is known
+  but $\theta$ is unknown. We sample $n$ balls from the urn without
+  replacement and suppose we see $x$ red balls in the sample. What can
+  we infer from $\theta$ based on knowledge of $x$, $n$ and $N$?
+
+  This problem has applications in survey sampling. Suppose we want to
+  know the number $\theta$ in a city (of total population $N$) that
+  support a particular political party. We take a sample of $n$ people
+  out of which $x$ support that party. What can we then say about
+  $\theta$?
+
+  \begin{enumerate}
+  \item Argue that the likelihood function is given by: (\textbf{3 points})
+    \begin{align*}
+      \P \left\{X = x \mid N, \theta, n \right\} = \frac{{\theta
+      \choose x}{N - \theta \choose n-x}}{{N \choose n}}
+    \end{align*}
+  This is the Hypergeometric distribution
+  (\url{https://en.wikipedia.org/wiki/Hypergeometric_distribution}).  
+  \item Work with the prior:
+    \begin{align*}
+      \P \left\{\theta = \theta \mid N \right\} = \frac{1}{N+1}
+      I\{\theta \in \{0, 1, \dots, N\}\}, 
+    \end{align*}
+    and show that the posterior is given by (\textbf{3 points})
+    \begin{align*}
+      \P \left\{\theta = \theta \mid x, N, n \right\} = \frac{{\theta
+      \choose x} {N - \theta \choose n - x}}{{N+1
+      \choose n+1}} I\{\theta \in \{0, 1, \dots, N\}\}. 
+    \end{align*}
+  \item Show that (\textbf{3 points})
+    \begin{align*}
+      \E \left(\theta \mid x, n, N \right) = \frac{(N+2)(x+1)}{n+2} - 1
+    \end{align*}
+    and
+    \begin{align*}
+      \text{var}(\theta \mid x, n, N) = \frac{p(1 - p)}{n+3}(N+2)(N-n)
+      \qt{where $p := \frac{x + 1}{n+2}$}. 
+    \end{align*}
+  \item When $N$ is large, argue that (\textbf{2 points})
+    \begin{align*}
+      \E \left(\frac{\theta}{N} \mid x, n, N \right) \approx
+      \frac{x+1}{n+2} = p
+    \end{align*}
+    and
+    \begin{align*}
+      \text{var}\left(\frac{\theta}{N} \mid x, n, N \right) \approx
+      \frac{p(1-p)}{n+3}. 
+    \end{align*}
+    This implies that, when $N$ is large, a point estimate of $\theta/N$ can be taken to
+    be $p$ and the uncertainty of this point estimate can be taken to
+    be the posterior standard deviation $\sqrt{\frac{p(1-p)}{n+3}}$.
+  \item Let $R_{n+1}$ denote the event that the next draw (i.e., the
+    $(n+1)$-th draw) leads to a red ball. Show that the posterior
+    probability of $R_{n+1}$ given $x, n, N$ is given by: (\textbf{3 points})
+    \begin{align*}
+      \P \left\{R_{n+1} \mid x, n, N \right\} = \frac{x+1}{n+2} = p. 
+    \end{align*}
+    This formula is known as the Laplace Rule of Succession. 
+  \end{enumerate}
+
+\item In Lectures 3 and 4, we discussed the problem of estimating
+  $\theta$ from numerical measurements $x_1, \dots, x_n$. We used the
+  following Bayesian model:
+  \begin{align*}
+    X_1, \dots, X_n \mid \theta, \sigma \overset{\text{i.i.d}}{\sim}
+    N(\theta, \sigma^2)  ~~ \text{ and } ~~ \theta, \log \sigma
+    \overset{\text{i.i.d}}{\sim} \text{uniform}(-\infty, \infty).
+  \end{align*}
+  We proved that the posterior density of $\theta$ under this model
+  satisfies:
+  \begin{equation}\label{t_class}
+    \frac{\sqrt{n} \left(\theta - \bar{x} \right)}{\hat{\sigma}} \mid
+    \text{data} \sim t_{n-1}
+  \end{equation}
+  where
+  \begin{equation*}
+    \bar{x} := \frac{x_1 + \dots + x_n}{n} ~~ \text{ and } ~~
+    \hat{\sigma}^2 := \frac{1}{n-1} \sum_{i=1}^n (x_i - \bar{x})^2. 
+  \end{equation*}
+  In this exercise, we shall go over a slightly different proof of the
+  same result. Along the way, we shall also discuss inference for
+  $\sigma$.
+  \begin{enumerate}
+  \item Show that
+    \begin{align*}
+      \theta \mid \text{data}, \sigma \sim N(\bar{x},
+      \frac{\sigma^2}{n}). 
+    \end{align*}
+    The left hand side above refers to the conditional distribution of
+    $\theta$ given the data as well as the parameter
+    $\sigma$. (\textbf{2 points}).
+  \item Show that the posterior density of $\sigma$ satisfies:
+    (\textbf{2 points})
+    \begin{align*}
+   f_{\sigma \mid \text{data}}(\sigma) \propto   \sigma^{-n} \exp \left(-\frac{\sum_{i=1}^n (x_i -
+      \bar{x})^2}{2 \sigma^2} \right) I\{\sigma > 0\}. 
+    \end{align*}
+  \item Use the results of the previous two parts along with the
+    formula:
+    \begin{align*}
+      f_{\theta \mid \text{data}}(\theta) = \int_0^{\infty} f_{\theta
+      \mid \text{data}, \sigma}(\theta) f_{\sigma \mid
+      \text{data}}(\sigma) d\sigma
+    \end{align*}
+    to deduce \eqref{t_class}. (\textbf{2 points})
+  \item Use the result in part (b) to show that
+    \begin{align}\label{chi_square}
+      \frac{1}{\sigma^2} \sum_{i=1}^n(x_i - \bar{x})^2 \mid
+      \text{data} \sim \chi^2_{n-1}. 
+    \end{align}
+  On this basis, comment on whether $\hat{\sigma} = \sqrt{\sum_{i=1}^n (x_i -
+      \bar{x})^2/(n-1)}$ is a reasonable point estimate of $\sigma$
+    (\textbf{2 + 1 = 3 points}).
+  \item Using \eqref{chi_square}, derive a $100(1-\alpha)\%$ Bayesian
+    credible interval for $\sigma$ for fixed $\alpha$. (\textbf{2
+      points}).
+  \item Suppose $n = 6$ and $x_1 = 26.6, x_2 = 38.5, x_3 = 34.4,
+  x_4 = 34, x_5 = 31, x_6 = 23.6$. Explicitly calculate the $95\%$
+  credible interval for $\sigma$. (\textbf{2 points}). 
+  \end{enumerate}
+
+\item In Lecture 4, we considered the frequentist probability: 
+  \begin{align}\label{freq_prob}
+    \P\left\{\bar{X}_N -     \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}}\sqrt{\frac{1}{N-1} \sum_{i=1}^N(X_i -
+    \bar{X})^2} \leq \theta \leq \bar{X}_N +     \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}}\sqrt{\frac{1}{N-1} \sum_{i=1}^N(X_i -
+    \bar{X})^2} 
+\right\}
+  \end{align}
+  where $X_1, X_2, \dots$ are i.i.d $N(\theta, \sigma^2)$ (for fixed
+  $\theta$ and $\sigma$), and $N$ is the stopping rule:
+  \begin{align}\label{Nstop}
+    N := \inf\{n \geq 1 : X_n \leq 25\}. 
+  \end{align}
+  It was mentioned in class that, unlike the case when $N$ is a fixed number such as
+  6, the probability \eqref{freq_prob} will be different from $1 -
+  \alpha$. The goal of this problem is to verify this by simulation.
+
+The probability \eqref{freq_prob} is actually not well-defined
+ because of the presence of $N-1$ in the denominator, as $N$ in
+ \eqref{Nstop} can equal 1 with some positive probability. We
+ therefore attempt to calculate the simpler probability:
+  \begin{align}\label{freq_prob_simp}
+    \P\left\{\bar{X}_N -   \sigma  \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}} \leq \theta \leq \bar{X}_N + \sigma    \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}}  \right\}. 
+  \end{align}
+Follow the steps below to write code to calculate the above
+probability.  
+\begin{enumerate}
+\item Fix $\theta = 35.5$ and $\sigma = 5.5$.
+\item Set $\alpha = 0.05$ and $M = 100000$.
+\item For $i = 1, \dots, M$:
+  \begin{itemize}
+  \item Generate $N(\theta,\sigma^2)$ random variables $X_1,
+    X_2,\dots$ until an observation less than $25$ is obtained. Let
+    $N$ be the number of observations.
+  \item Calculate  $C_i = I\left\{\bar{X}_N -   \sigma  \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}} \leq \theta \leq \bar{X}_N + \sigma    \frac{t_{N-1,
+    \alpha/2}}{\sqrt{N}} \right\}$. 
+\end{itemize}
+\item The estimate for the probability \eqref{freq_prob_simp} is $(C_1
+  + \dots + C_M)/M$. 
+\end{enumerate}
+Write code and compute this estimate of
+\eqref{freq_prob_simp}. Comment on how different the estimate is from
+$1 - \alpha$. (\textbf{5 points}).
+
+\item Consider again the problem of estimating an unknown physical
+  quantity $\theta$ from data $x_1 = 26.6, x_2 = 38.5, x_3 = 34.4,
+  x_4 = 34, x_5 = 31, x_6 = 23.6$. Suppose that the measurement device
+  can only record observations if they are in the range $[23,
+  39]$. Based on this information and the data, what can be inferred
+  about $\theta$?
+\begin{enumerate}
+\item Argue that the likelihood now should be: 
+  \begin{align*}
+    \prod_{i=1}^n \frac{\frac{1}{\sigma}
+    \phi\left(\frac{x_i-\theta}{\sigma} \right)}{\Phi\left(\frac{39 -
+    \theta}{\sigma} \right) - \Phi\left(\frac{23 -
+    \theta}{\sigma} \right)}
+  \end{align*}
+  where $\phi(z) := (2 \pi)^{-1/2}\exp(-z^2/2)$ is the normal density
+  and $\Phi(z) = \int_{-\infty}^z \phi(u) du$ is the normal
+  cdf. (\textbf{2 points})
+\item Using the same prior $\theta, \log \sigma
+  \overset{\text{i.i.d}}{\sim} \text{uniform}(-\infty, \infty)$, write
+  down the joint posterior density for $\theta$ and
+  $\sigma$. (\textbf{2 points})
+\item Construct a dense grid of points $(\theta, \log \sigma)$ (say in
+  the range $[15, 50] \times [-1, 3]$). On this grid, compute the
+  unnormalized posterior density, and normalize
+  numerically. (\textbf{3 points})
+\item Based on the discretized posterior, compute an approximate
+  $95\%$ Bayesian credible interval for $\theta$. Compare your
+  interval to the interval obtained by the usual normal analysis from
+  class which does not take the truncation into consideration. For
+  example, does this analysis with the truncated prior lead to a
+  smaller credible region? (\textbf{4 points}). 
+\end{enumerate}
+
+\item Consider again the problem of estimating an unknown physical 
+  quantity $\theta$ from data. Suppose the measurement device works
+  correctly if the measurement lies in the range $[23, 39]$. If the
+  measurement  falls outside this range, then the device displays
+  \texttt{Failure}. Suppose we got the observations: $x_1 = 26.6, x_2 = 38.5, x_3 = 34.4,
+  x_4 = 34, x_5 = 31, x_6 = 23.6, x_7 = \texttt{Failure}, x_8 =
+  \texttt{Failure}$. Based on this information and the data, what can
+  be inferred   about $\theta$?
+\begin{enumerate}
+\item Argue that the likelihood now should be: 
+  \begin{align*}
+\left[    \prod_{i=1}^6\frac{1}{\sigma}
+    \phi\left(\frac{x_i-\theta}{\sigma} \right) \right] \left[1 -
+    \Phi\left(\frac{39 - \theta}{\sigma} \right) +  \Phi\left(\frac{23
+    - \theta}{\sigma} \right) \right]^2
+  \end{align*}
+  where $\phi(z) := (2 \pi)^{-1/2}\exp(-z^2/2)$ is the normal density
+  and $\Phi(z) = \int_{-\infty}^z \phi(u) du$ is the normal
+  cdf. (\textbf{2 points})
+\item Using the same prior $\theta, \log \sigma
+  \overset{\text{i.i.d}}{\sim} \text{uniform}(-\infty, \infty)$, write
+  down the joint posterior density for $\theta$ and
+  $\sigma$. (\textbf{2 points})
+\item Construct a dense grid of points $(\theta, \log \sigma)$ (say in
+  the range $[15, 50] \times [-1, 3]$). On this grid, compute the
+  unnormalized posterior density, and normalize
+  numerically. (\textbf{3 points})
+\item Based on the discretized posterior, compute an approximate
+  $95\%$ Bayesian credible interval for $\theta$. Compare your
+  interval to the interval obtained by the usual normal analysis from
+  class which does not take the truncation into consideration. For
+  example, does this analysis with the truncated prior lead to a
+  smaller credible region? (\textbf{4 points}). 
+\end{enumerate}
+
+
+  
+
+\item Consider yet again the problem of estimating an unknown physical
+  quantity $\theta$ from observations $x_1, \dots, x_n$. Now consider the
+  following Bayesian model:
+    \begin{align*}
+    X_1, \dots, X_n \mid \theta, \sigma \overset{\text{i.i.d}}{\sim}
+    \text{Lap}(\theta, \sigma)  ~~ \text{ and } ~~ \theta, \log \sigma
+    \overset{\text{i.i.d}}{\sim} \text{uniform}(-\infty, \infty).
+    \end{align*}
+    Here $\text{Lap}(\theta, \sigma)$ denotes the Laplace distribution which has density
+    \begin{equation*}
+x \mapsto    \frac{1}{2\sigma} \exp \left(-\frac{|x - \theta|}{\sigma} \right).
+    \end{equation*}
+    \begin{enumerate}
+    \item Show that the posterior of $\theta$ satisfies: (\textbf{4 points})
+  \begin{equation*}
+     f_{\theta \mid \text{data}}(\theta) \propto
+     \left(\frac{1}{M(\theta)} \right)^n \qt{where $M(\theta) :=
+       \sum_{i=1}^n |x_i - \theta|$}. 
+   \end{equation*}
+  \item For the data  $x_1 = 26.6, x_2 = 38.5, x_3 = 34.4,
+  x_4 = 34, x_5 = 31, x_6 = 23.6$, evaluate the density at a dense
+  grid of points in some large range (e.g., $[15, 50]$), normalize
+  correctly so that the integral of the posterior density is 1, and
+  then plot the posterior density. Comment on the nature of the
+  plot. (\textbf{4 points}).
+  \item Use your discretized approximation of the posterior to
+    construct an approximate $95\%$ credible interval for
+    $\theta$. Compare your interval with the interval derived from the
+    normal based method from class. (\textbf{4 points}).
+  \item Repeat the exercise from part (c) when the data is $x_1 =
+    26.6, x_2 = 38.5, x_3 = 34.4, x_4 = 34, x_5 = 31, x_6 = 23.6, x_7
+    = 120$. The additional data point $x_7 = 120$ is an outlier, and
+    the goal here is to see how the outlier affects the two intervals based on the
+    normal and  Laplace models. (\textbf{3 points}).
+  \end{enumerate}
+
+\end{enumerate}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
