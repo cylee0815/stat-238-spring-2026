@@ -1,0 +1,592 @@
+%\documentclass[12pt,oneside]{amsart}
+\documentclass{scrartcl}
+
+%\documentclass{article}
+
+\usepackage{amsthm,amsmath,amssymb}
+\usepackage[numbers]{natbib}
+
+%\usepackage[colorlinks]{hyperref}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks,%
+    citecolor=black,%
+    filecolor=black,%
+    linkcolor=black,%
+    urlcolor=black
+}
+\usepackage{hypernat}
+\usepackage[top=2.5cm, bottom=2.5cm, left=2.8cm,
+right=2.8cm]{geometry}
+\usepackage{float}
+
+%\setlength{\parskip}{0pt}
+%\setlength{\parsep}{0pt}
+%\setlength{\headsep}{0pt}
+%\setlength{\topskip}{0pt}
+%\setlength{\topmargin}{0pt}
+%\setlength{\topsep}{0pt}
+%\setlength{\partopsep}{0pt}
+
+\linespread{1}
+
+%\usepackage{marvosym}
+
+%\textwidth = 6.5 in \textheight = 9.2 in \oddsidemargin = 0.0 in
+%\evensidemargin = 0.0 in \topmargin = -0.0 in \headheight = 0.0 in
+%\headsep = 0.0in \parskip = 0.0in \parindent = 0.0in
+%\def\baselinestretch{0.871}
+
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{problem}[theorem]{Problem}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{defn}[theorem]{Definition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{remark}{Remark}[section]
+\newtheorem{example}[theorem]{Example}
+
+\newcommand{\E}{{\mathbb E}}
+\newcommand{\se}{{\mathcal{E}}}
+\newcommand{\R}{{\mathbb R}}
+\renewcommand{\P}{{\mathbb P}}
+\newcommand{\ac}{{\mathcal{A}}}
+\newcommand{\A}{{\mathcal{A}}}
+\newcommand{\B}{{\mathcal{B}}}
+\newcommand{\C}{{\mathcal{C}}}
+\newcommand{\M}{{\mathcal{M}}}
+\newcommand{\Mf}{{\mathfrak{M}}}
+\newcommand{\T}{{\mathcal{T}}}
+\newcommand{\Z}{{\mathcal{Z}}}
+\newcommand{\K}{{\mathcal{K}}}
+\newcommand{\lc}{{\mathcal{L}}}
+\newcommand{\Ps}{{\mathcal{P}}}
+\newcommand{\G}{{\mathcal{G}}}
+\newcommand{\pa}{{\mathring{p}}}
+\newcommand{\F}{{\cal F}}
+\newcommand{\samp}{{\mathcal{X}}}
+\newcommand{\X}{{\mathcal{X}}}
+\newcommand{\hi}{{\hat{\Phi}}}
+\newcommand{\data}{{\text{data}}}
+
+\newcounter{rcnt}[section]
+\renewcommand{\thercnt}{(\roman{rcnt})}
+
+\def\qt#1{\qquad\text{#1}}
+
+\def\argmin{\mathop{\rm argmin}}
+\def\argmax{\mathop{\rm argmax}}
+
+
+\setlength{\parskip}{1.4 \medskipamount}
+%\sloppy
+%\linespread{1.3}
+
+\begin{document}
+
+\title{STAT 238 - Bayesian Statistics \\
+ Homework Three} 
+\subtitle{Spring 2026, UC Berkeley}
+\author{Due by 11:59 pm on 15 March 2026 \\ Total Points = 133} 
+
+\date{}
+\maketitle
+
+
+
+% \tableofcontents
+
+\begin{enumerate}
+
+\item Suppose $X_1, \dots, X_n$ are i.i.d observations from a
+  distribution with finite variance $\sigma^2$.
+  \begin{enumerate}
+  \item Describe an algorithm based on classical bootstrap to obtain a
+    $95\%$ interval for $\sigma$. (\textbf{3 points}). 
+  \item Describe an algorithm based on the Bayesian bootstrap to
+    obtain a  $95\%$ interval for $\sigma$. (\textbf{3 points}).
+  \item Assuming the model $X_1, \dots, X_n
+    \overset{\text{i.i.d}}{\sim} N(\mu, \sigma^2)$, describe a
+    $95\%$ uncertainty interval (frequentist or Bayesian)
+    for $\sigma$. If you want a Bayesian interval, you can directly use problem
+    3(e) from Homework One (\textbf{2 points}).
+  \item Consider the data in \texttt{old\_faithful\_eruptions.txt} which
+    gives eruption durations for the old faithful geyser in the
+    Yellowstone National Park. Using all three methods above, compute
+    a $95\%$ interval for $\sigma$. Compare the resulting intervals:
+    are they similar? which method produces the widest interval?
+    (\textbf{6 points}). 
+  \end{enumerate}
+
+\item Suppose $(X_1, Y_1), \dots, (X_n, Y_n)$ are i.i.d observations
+  from a distribution with correlation $\rho$.
+  \begin{enumerate}
+  \item Describe an algorithm based on classical bootstrap to obtain a
+    $95\%$ interval for $\rho$. (\textbf{3 points}). 
+  \item Describe an algorithm based on the Bayesian bootstrap to
+    obtain a  $95\%$ interval for $\rho$. (\textbf{3 points}).
+  \item Consider the data in \texttt{PearsonHeightData.txt} which
+    contains heights of adult father-son pairs. Using all three methods above, compute
+    a $95\%$ interval for $\rho$. Compare the resulting intervals:
+    are they similar? which method produces the widest interval?
+    (\textbf{6 points}). 
+  \end{enumerate}
+
+
+\item Consider the kidney cancer dataset from Homework Two and
+  class. Here $X_i$ denotes the total death count due to kidney cancer
+  for county $i$ in the period $1980-89$. Also $n_i$ denotes the
+  average population for county $i$ in the same time period. We want
+  to use the model:
+  \begin{align*}
+    X_i \overset{\text{ind}}{\sim} \text{Binomial}(n_i, \theta_i)  
+  \end{align*}
+  along with the prior
+  \begin{align*}
+    \theta_i \overset{\text{i.i.d}}{\sim} \text{Beta}(a, b). 
+  \end{align*}
+  We want to treat $a$ and $b$ as unknown parameters and estimate them
+  by maximizing the marginal likelihood of the data $X_1, \dots,
+  X_N$. In Lecture 9, we discussed maximization of \eqref{marglik} by
+     taking a grid of values for $a$ and $b$. The goal of this problem
+     is to solve the same maximization using gradient descent. 
+  \begin{enumerate}
+  \item Show that the marginal likelihood for $a, b$ is proportional to:
+    \begin{align}\label{marglik}
+      \prod_{i=1}^N \frac{B(X_i + a, n_i - X_i + b)}{B(a, b)}
+    \end{align}
+    where $N$ is the total number of counties, and $B(\cdot, \cdot)$
+    denotes the Beta function. (\textbf{3 points}).
+   \item Write the marginal likelihood \eqref{marglik} using the Gamma
+     function. (\textbf{2 points})
+   \item Write the gradient (with respect to $a, b$) of the logarithm
+     of the marginal likelihood in terms of the digamma
+     function. (\textbf{2 points})
+   \item Implement a gradient ascent scheme for maximizing the
+     logarithm of the marginal likelihood. You are welcome to use a
+     scheme similar to that used in Lecture 14 to select the right
+     step size. Initialize the optimization with $a = b =
+     1$. (\textbf{5 points})
+   \item Compare the answer obtained by gradient descent with the
+     answer obtained in Lecture 9 via grid based maximization. Are the
+     answers similar. (\textbf{2 points}). 
+  \end{enumerate}
+
+\item Consider the two text files: \texttt{spam.txt} and
+  \texttt{ham.txt}. These contain some words that are commonly
+  associated with spam and regular (ham) text. The goal is to learn
+  some basic models corresponding to spam and ham from this text data,
+  and use the models to predict whether a new short piece of text
+  corresponds to spam or ham.    
+
+  Form a vocabulary consisting of all the words that appeared in the
+  two texts together. Let $K$ denote the size of the vocabulary. 
+
+  \begin{enumerate}
+  \item Let $X_1, X_2, \dots, X_{n_1}$ be the words appearing in
+    \texttt{spam.txt}. Model these as i.i.d from a distribution
+    $p^{\text{spam}}_1, \dots, p_{K}^{\text{spam}}$. Use the prior:
+    \begin{align*}
+      (p^{\text{spam}}_1, \dots, p_{K}^{\text{spam}}) \sim
+      \text{Dirichlet}(\alpha, \dots, \alpha)
+    \end{align*}
+    for $\alpha = 1$. Calculate the posterior distribution of
+    $(p^{\text{spam}}_1, \dots, p_{K}^{\text{spam}})$. Output the 5
+    words corresponding to the top five posterior mean probability
+    estimates $\hat{p}^{(\text{spam})}$. (\textbf{4 points}).
+  \item Consider the short text:
+    \begin{align}\label{ste}
+      \texttt{ limited time free reward offer claim now  }
+    \end{align}
+  Calculate the posterior predictive probability for this text using
+  the model from part (a). (\textbf{4 points}).
+  \item Repeat part (a) with \texttt{ham.txt} instead of
+    \texttt{spam.txt}. Specifically, let $Y_1, Y_2, \dots, Y_{n_2}$ be
+    the words appearing in 
+    \texttt{ham.txt}. Model these as i.i.d from a distribution
+    $p^{\text{ham}}_1, \dots, p_{K}^{\text{ham}}$. Use the prior:
+    \begin{align*}
+      (p^{\text{ham}}_1, \dots, p_{K}^{\text{ham}}) \sim
+      \text{Dirichlet}(\alpha, \dots, \alpha)
+    \end{align*}
+    for $\alpha = 1$. Calculate the posterior distribution of
+    $(p^{\text{ham}}_1, \dots, p_{K}^{\text{ham}})$. Output the 5
+    words corresponding to the top five posterior mean probability
+    estimates $\hat{p}^{(\text{ham})}$. (\textbf{2 points}).
+ \item  For the text \eqref{ste},   calculate the posterior predictive
+   probability for this text using the model from part (c). (\textbf{2
+     points}).
+ \item Consider the two posterior predictive probabilities in parts
+   (b) and    (d). Which posterior probability is higher? Based on these
+   posterior probabilities, classify \eqref{ste} as spam or ham. Is
+   the classification answer sensible? (\textbf{3 points}).
+\item Repeat the entire exercise above (parts (a) to (e)) with $\alpha
+  \approx 0$ (e.g., $\alpha = 1e-9$) instead of $\alpha = 1$. How do
+  the posterior predictive probabilities in part (e) change with this
+  change of $\alpha$? (\textbf{3 points})
+\item Compute the posterior predictive probabilities as well as the
+  classification for the text:
+  \begin{align}\label{anste}
+    \texttt{project update and limited offer}. 
+  \end{align}
+  You are free to choose $\alpha$ (e.g., either 1 or $1e-9$) as you
+  feel appropriate. What is your classification for this text, and why
+  does it make sense? (\textbf{4 points}).
+  \end{enumerate}
+
+  
+\item Consider the text data file \texttt{alice.txt}. The goal of this
+  problem is to replicate the analysis of Lecture 14 for this dataset
+ using the i.i.d and AR(1) models. 
+
+ \begin{enumerate}
+ \item Tokenize the file \texttt{alice.txt} so that each token
+   corresponds to a single word, with the period (full stop) treated
+   as a separate token. (\textbf{1 point}).
+ \item Construct a vocabulary consisting of all unique tokens in the
+   corpus. Let $K$ denote the size of this vocabulary. (\textbf{1
+     point}).
+ \item The first model is the i.i.d model where we assume that $y_1,
+   \dots, y_n$  are i.i.d from a distribution $(p_1, \dots,
+   p_K)$. Here $y_i$ is the $i$-th token in the corpus. Use the prior:
+   \begin{align*}
+     (p_1, \dots, p_K) \sim \text{Dirichlet}(\alpha, \dots, \alpha)
+   \end{align*}
+   where $\alpha$ is small (e.g., $\alpha = 10^{-3}$). Calculate the
+   posterior distribution of $(p_1, \dots, p_K)$.
+   \begin{enumerate}
+   \item Output the 5 words corresponding to the top five posterior
+     mean probability estimates $\hat{p}_k$. Comment on whether this
+     output is reasonable given the nature of this text. (\textbf{2
+       points}).
+   \item Using this model, generate $s = 20$ new sentences. For each
+     sentence, sequentially generate tokens until the period token is
+     produced, and treat this as the end of the sentence. Comment on
+     how realistic the generated sentences appear. (\textbf{3 points})     
+   \end{enumerate}
+ \item The second model is the AR(1) model with likelihood:
+   \begin{align*}
+     \prod_{i=1}^K \prod_{j=1}^K p_{j \mid i}^{x_{j|i}}
+   \end{align*}
+   where $x_{j|i}$ is the number of times token $j$ follows token $i$
+   in the text, and the unknown parameters are given by $(p_{j \mid
+     i}, 1 \leq i, j \leq K)$ (here $p_{j \mid i}$ denotes the
+   probability that word $j$ appears as the next word given that the
+   previous word is $i$). We use the prior
+   \begin{align*}
+     (p_{j \mid i}, j = 1, \dots, K) \overset{\text{i.i.d}}{\sim}
+     \text{Dirichlet}(a_1, \dots, a_K)
+   \end{align*}
+   Using the method of maximum marginal likelihood (as used in Lecture
+   14), estimate $a_1, \dots, a_K$. (\textbf{5 points})
+ \item Using the estimated $a_1, \dots, a_k$, calculate the posterior
+   mean estimates of $p_{j \mid i}$ for all $i$. For each of the
+   tokens \texttt{alice}, \texttt{she}, and \texttt{the}, report the
+   four tokens $j$ with the largest estimated values $\hat{p}_{j \mid
+     i}$. (\textbf{3 points})
+\item Use this fitted AR(1) model to generate $s = 20$ new sentences
+  each starting with the period token. For each sentence, sequentially
+  generate tokens until the period token is produced, and treat this
+  as the end of the sentence. Comment on how realistic the generated
+  sentences appear and compare this to the sentences generated via the
+  previous i.i.d model. (\textbf{4 points}). 
+ \end{enumerate}
+  
+
+  
+
+
+
+\item Consider two binary variables $A$ and $B$. We observe data
+  $(A_1, B_1), \dots, (A_n, B_n)$ from $n$ subjects on these
+  variables. Each $(A_i, B_i)$ takes one of the four values $(0, 0),
+  (0, 1)$, $(1, 0)$ and $(1, 1)$. We model this data by assuming that
+  $(A_i, B_i)$ are i.i.d. The distribution of $(A_i, B_i)$ is given by
+  the four numbers:
+  \begin{align*}
+&  \theta_{00} = \P\{A_i = 0, B_i = 0\}, ~~ \theta_{01} = \P\{A_i = 0,
+  B_i = 1\}, \\
+&~ \theta_{10} = \P\{A_i = 1, B_i = 0\}, ~~ \theta_{11} = \P\{A_i = 1,
+  B_i = 1\}. 
+  \end{align*}
+We will consider the following two models for $(\theta_{00},
+\theta_{01}, \theta_{10}, \theta_{11})$. 
+  \begin{enumerate}
+  \item Model 1 for the joint distribution of $(A_i, B_i)$ uses the
+    decomposition:
+    \begin{align*}
+      \P\{A_i = a_i, B_i = b_i\} = \P\{A_i = a_i\} \P\{B_i = b_i \mid
+      A_i = a_i\}.
+    \end{align*}
+    Model 1 is given by:
+    \begin{align*}
+      \P\{A_i = 1\}, \P\{B_i = 1 \mid A_i = 1\}, \P\{B_i = 1 \mid A_i
+      = 0\} \overset{\text{i.i.d}}{\sim} \text{uniform}(0, 1). 
+    \end{align*}
+    Write down the joint density on $(\theta_{00}, \theta_{01},
+    \theta_{10}, \theta_{11})$ under Model 1. (\textbf{3 points})
+  \item Model 2 for the joint distribution of $(A_i, B_i)$ uses the
+    decomposition:
+    \begin{align*}
+      \P\{A_i = a_i, B_i = b_i\} = \P\{B_i = b_i\} \P\{A_i = a_i \mid
+      B_i = b_i\}.
+    \end{align*}
+    Model 2 is given by:
+    \begin{align*}
+      \P\{B_i = 1\}, \P\{A_i = 1 \mid B_i = 1\}, \P\{A_i = 1 \mid B_i
+      = 0\} \overset{\text{i.i.d}}{\sim} \text{uniform}(0, 1). 
+    \end{align*}
+    Write down the joint density on $(\theta_{00}, \theta_{01},
+    \theta_{10}, \theta_{11})$ under Model 2. (\textbf{3 points})
+  \item Under each model, calculate the marginal density of $\P\{A_i =
+    1\}$. For Model 2, is this marginal density uniform on $(0, 1)$?
+    (\textbf{3 points})
+  \item Given the observed data $(A_i, B_i), i = 1, \dots, n$, let
+    $N_{00}, N_{01}, N_{10}, N_{11}$ denote the observed counts for the
+    four cases $(0, 0), (0, 1), (1, 0), (1, 1)$. Write down the
+    posterior density of $(\theta_{00}, \theta_{01}, \theta_{10},
+    \theta_{11})$ under each model (Model 1 and Model 2). (\textbf{4
+      points}).
+  \item We now create a single new model that encompasses both Model 1
+    and Model 2, and enables us to do model selection. This model is
+    given by:
+    \begin{align*}
+   &   I \sim \text{uniform}\{1, 2\} ~\text{i.e., }~ \P\{I = 1\} =
+     \P\{I = 2\} = 0.5 \\
+   & (\theta_{00}, \theta_{01}, \theta_{10}, \theta_{11}) \mid I = i
+     \sim \text{Model}~i \\
+   & (A_1, B_1), \dots, (A_{n}, B_n) \mid (\theta_{00}, \theta_{01},
+     \theta_{10}, \theta_{11}) \overset{\text{i.i.d}}{\sim} (\theta_{00}, \theta_{01},
+     \theta_{10}, \theta_{11}). 
+    \end{align*}
+    Calculate the posterior distribution of $I$ given the data $(A_1,
+    B_1), \dots, (A_{n}, B_n)$. This can be interpreted as the posterior
+    probabilities associated with the two models given the observed
+    data. (\textbf{4 points})
+  \item Here we calculate the posterior probability of $I$ given a
+    specific dataset. We can summarize the data $(A_1, B_1), \dots,
+    (A_n, B_n)$ by just recording the counts corresponding to each of
+    the values $(0, 0), (0, 1), (1, 0), (1, 1)$, and these 
+  counts can be recorded in a $2 \times 2$ contingency table. Consider
+  the dataset given in Table \ref{conting} below. 
+\begin{table}[ht]
+\centering
+\[
+\begin{array}{c|cc|c}
+ & B=0 & B=1 & \text{Row Total} \\
+\hline
+A=0 & 760 & 190 & 950 \\
+A=1 & 5   & 45  & 50 \\
+\hline
+\text{Column Total} & 765 & 235 & 1000 \\
+\end{array}
+\]
+\caption{Contingency table for binary variables $A$ and $B$}
+\label{conting}
+\end{table}
+Calculate the posterior distribution of $I$ given the data, and show
+that the posterior probability of Model 1 (i.e., of $I = 1$) is about
+3.8 times the posterior probability of Model 2 (i.e., of $I =
+2$). (\textbf{3 points}).
+\item \textbf{[Bonus question]} This example is adapted from
+  \citet[Exercise 35.5, p. 447]{MacKay}. MacKay presents it as an
+  illustration of how one might attempt to infer a “direction of
+  causation” from purely observational data. Model 1 is denoted by $A
+  \rightarrow B$ because it first specifies the marginal distribution
+  of $A$ and then models the conditional distribution of $B \mid
+  A$. Similarly, Model 2 is denoted by $B \rightarrow A$, as it begins
+  with the marginal distribution of $B$ and then specifies $A \mid
+  B$. 
+
+Interestingly, for the given dataset, the posterior model
+probabilities indicate a preference of approximately 3.8 to 1 in favor
+of one model over the other. Discuss your thoughts on this
+interpretation of the posterior comparison, particularly in relation
+to whether such calculations genuinely provide evidence about causal
+direction. \textbf{(3 points)}
+
+\end{enumerate}
+
+\item Consider the multiple regression model:
+\begin{equation}\label{lm}
+  y_i = \beta_0 + \beta_1 x_{i1} + \beta_2 x_{i2} + \dots + \beta_m
+  x_{im} + \epsilon_i \qt{with $\epsilon_i
+    \overset{\text{i.i.d}}{\sim} N(0, \sigma^2)$}. 
+\end{equation}
+We observe data $(x_{i1}, \dots, x_{im}, y_i),i = 1, \dots, n$. In the
+model above, the covariates $x_{ij}$ are treated as fixed
+constants. For Bayesian analysis with the prior, 
+  \begin{equation*}
+    \beta_0, \beta_1, \dots,\beta_m, \log \sigma
+    \overset{\text{i.i.d}}{\sim} 
+    \text{Unif}(-C, C). 
+  \end{equation*}
+we showed (in Lecture 15) that when $C \rightarrow \infty$,
+  \begin{equation}\label{inclass}
+    \beta \mid \text{data} \sim t_{n-m-1, m+1} \left(\hat{\beta},
+      \hat{\sigma}^2 (X^T X)^{-1} \right)
+  \end{equation}
+  where $X, \beta, \hat{\beta}, \hat{\sigma}$ are all as defined in
+  Lecture 15.
+  
+This exercise provides another slightly different proof of this same
+result. Along the way, it also discusses inference for the parameter
+$\sigma$. Throughout, assume that $C \rightarrow \infty$ (i.e., $C$ is
+very large). 
+\begin{enumerate}
+\item Prove that 
+  \begin{equation}\label{betasig}
+    \beta \mid \text{data}, \sigma \sim N_{m+1}\left(\hat{\beta}, \sigma^2
+    \left(X^T X \right)^{-1}\right).
+\end{equation}
+The left hand side above is referring to the conditional density of
+$\beta$ given the data as well as the parameter $\sigma$. (\textbf{4 points})
+\item Prove that the posterior
+    density of $\sigma$ (i.e., the density of $\sigma \mid
+    \text{data}$) is proportional to 
+    \begin{equation}\label{sigdens}
+      \sigma^{-n+{\color{black}m}}  \exp \left(-\frac{S(\hat{\beta})}{2 \sigma^2}
+      \right) I\{\sigma > 0\},
+    \end{equation}
+    where $S(\hat{\beta})$ is the  Residual Sum of
+    Squares. (\textbf{4 points})
+  \item Use the results of the previous two parts along with the formula
+    \begin{equation*}
+      f_{\beta \mid \text{data}}(\beta) = \int_0^{\infty} f_{\beta
+        \mid \text{data}, \sigma}(\beta) f_{\sigma \mid
+        \text{data}}(\sigma) d\sigma
+    \end{equation*}
+    to deduce \eqref{inclass}. (\textbf{4 points})
+  \item Use the result in part (b) to show that (\textbf{3 points})
+    \begin{equation*}
+      \frac{S(\hat{\beta})}{\sigma^2} \mid
+      \text{data} \sim \chi^2_{n-m-1}. 
+    \end{equation*}
+  \item Use the result in the previous part to argue that the usual
+    estimator: 
+    \begin{equation*}
+      \hat{\sigma} := \sqrt{\frac{S(\hat{\beta})}{n-m-1}}
+    \end{equation*}
+    is a reasonable point estimate of $\sigma$. (\textbf{2 points}). 
+  \end{enumerate}
+
+\item This problem discusses predictions in linear
+  regression. Consider the same setting as the previous problem.  
+  \begin{enumerate}
+  \item 
+  Suppose we are interested in the parameter $a^T \beta$ for some
+  fixed vector $a$. Using  \eqref{betasig},   prove that 
+  \begin{equation*}
+    a^T\beta \mid \text{data}, \sigma \sim N \left(a^T \hat{\beta},
+      \sigma^2 a^T \left(X^T
+      X \right)^{-1} a\right)
+\end{equation*}
+Note that we are conditioning on the data as well as the parameter
+$\sigma$ in the left hand side above.  (\textbf{3 points})
+
+\item Using  \eqref{inclass}, prove that  (\textbf{3 points})
+  \begin{equation*}
+a^T  \beta \mid \text{data} \sim t_{n-m-1} \left(a^T 
+      \hat{\beta},
+      \hat{\sigma}^2 a^T \left(X^T
+      X \right)^{-1} a\right)
+\end{equation*}
+
+\item Suppose we are interested in predicting the value $Y_{n+1}$ of
+  the response variable at a new set of covariate observations
+  $x_{n+1, 1}, \dots, x_{n+1, m}$. Assuming that
+  \begin{equation*}
+    Y_{n+1} = \beta_0 + \beta_1 x_{n+1, 1} + \dots + \beta_m x_{n+1,
+      m} + \epsilon_{n+1} 
+  \end{equation*}
+  for an independent error $\epsilon_{n+1} \sim N(0, \sigma^2)$, prove that
+  (\textbf{4 points}) 
+  \begin{equation*}
+    Y_{n+1} \mid \text{data}, \sigma \sim N \left(
+      \tilde{x}_{n+1}^T \hat{\beta},
+\sigma^2 +      \sigma^2 \tilde{x}_{n+1}^T \left(X^T
+      X \right)^{-1} \tilde{x}_{n+1} \right) 
+\end{equation*}
+where $\tilde{x}_{n+1}$ is the vector with entries $1, x_{n+1, 1},
+\dots, x_{n+1, m}$. 
+
+\item Using the result from the previous part, the formula
+  \begin{equation*}
+    f_{Y_{n+1} \mid \text{data}}(y) = \int_0^{\infty} f_{Y_{n+1} \mid
+      \text{data}, \sigma}(y) f_{\sigma \mid \text{data}}(\sigma)
+    d\sigma, 
+  \end{equation*}
+  and the density $\sigma \mid \text{data}$ from \eqref{sigdens}, 
+  prove that  
+  \begin{equation*}
+    Y_{n+1} \mid \text{data} \sim t_{n-m-1} \left(
+ \tilde{x}_{n+1}^T \hat{\beta},
+\hat{\sigma}^2 +      \hat{\sigma}^2  \tilde{x}_{n+1}^T \left(X^T
+      X \right)^{-1} \tilde{x}_{n+1}\right). 
+\end{equation*}
+This result can be used for obtaining predictions of $Y_{n+1}$ along
+with uncertainty intervals.    (\textbf{5 points}). 
+  \end{enumerate}
+
+
+
+  
+  
+\end{enumerate}
+
+
+\begin{thebibliography}{99}
+
+  
+%\bibitem[Fisher(1934)]{Fisher1934}
+%R.~A. Fisher,
+%\newblock ``Probability, likelihood and quantity of information in the logic of
+%uncertain inference,''
+%\newblock \emph{Proceedings of the Royal Society of London. Series~A,
+%Containing Papers of a Mathematical and Physical Character}, vol.~146,
+%no.~856, pp.~1--8, 1934.
+
+%\bibitem[Efron(2010)]{Efron}
+%Efron, B. (2010)
+%\textit{Large-scale inference: empirical Bayes methods for estimation,
+%testing, and prediction}. Cambridge University Press, 2010.
+
+%\bibitem[Gelman et~al.(2013)]{Gelman2013}
+%Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., and Rubin, D. B. (2013)
+%\textit{Bayesian data analysis}. Third edition. Chapman \& Hall/CRC, 2013.
+
+%     \bibitem[Jaynes(2003)]{Jaynes} Jaynes, E. T, (2003)
+%  \textit{Probability theory: the logic of science}. Cambridge
+%  University Press, 2003.
+
+%  \bibitem[Sinai(1992)]{Sinai} Sinai, Y. G, (1992)
+%  \textit{Probability theory: an introductory course}. Springer
+%  Verlag, 1992.  
+
+%\bibitem[{deGroot(1986)}]{DeGrootBlackwell}DeGroot, M. H. (1986)
+%       A conversation with David Blackwell.
+%\newblock \emph{Statistical Science}, \textbf{1}, 40--53.
+
+%         \bibitem[Mosteller(1987)]{Mosteller} Mosteller, F, (1987)
+%  \textit{Fifty challenging problems in probability with
+%    solutions}. Courier Corporation, 1987.
+
+    \bibitem[MacKay(2003)]{MacKay} MacKay, D. J. C., (2003)
+  \textit{Information theory, inference, and learning
+  algorithms}. Cambridge University Press, 2003.
+
+%\bibitem[{Lindley(2013)}]{Lindley}Lindley, D. V. (2013)
+%   \textit{Understanding Uncertainty}. John Wiley and sons, 2013.
+
+
+\end{thebibliography}
+
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
