@@ -1,0 +1,19 @@
+name: stat238
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - scikit-learn
+  - statsmodels
+  - pymc
+  - arviz
+  - pytensor
+  - jupyter
+  - jupyterlab
+  - ipykernel
+  - pip
