@@ -4,9 +4,11 @@ subtitle: "Homework 4"
 author: "Thomas Lee"
 format:
   pdf:
-    toc: false
+    toc: true
     number-sections: false
     geometry: margin=1in
+    fig-format: pdf
+    fig-pos: "H"
 execute:
   echo: true
   warning: false
@@ -21,12 +23,36 @@ editor:
 
 ```{python}
 import numpy as np
+np.random.seed(238)
 import pandas as pd
+
+### Plotting
 import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.rcParams.update({
+    "figure.figsize": (14, 6),
+    "figure.dpi": 300,
+    "font.family": "serif",
+    "font.size": 12,
+    "axes.labelsize": 13,
+    "axes.titlesize": 14,
+    "xtick.labelsize": 11,
+    "ytick.labelsize": 11,
+    "legend.fontsize": 11,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "lines.linewidth": 1.5,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "grid.linestyle": "--"
+})
+
+### Modeling
 from scipy.stats import norm, chi2
-from scipy.linalg import solve, svd as lsvd, solve_triangular
+from scipy.linalg import solve, svd as lsvd, solve_triangular, cho_solve
 from scipy.special import gammaln
-from sklearn.linear_model import LogisticRegression, Ridge, RidgeCV
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 import statsmodels.api as sm
 import warnings
@@ -39,20 +65,14 @@ warnings.filterwarnings('ignore')
 
 ## (a) — Newton's Method for Logistic Regression MLE
 
-The logistic regression model assumes
-$$
-P(y_i = 1 \mid x_i) = \sigma(x_i'\beta) := \frac{e^{x_i'\beta}}{1 + e^{x_i'\beta}},
-$$
-giving log-likelihood
-$$
+The logistic regression model assumes $$
+P(y_i = 1 \mid x_i) = \sigma(x_i'\beta) := \frac{e^{x_i'\beta}}{1 + e^{x_i'\beta}}, \qquad
+P(y_i = 0 \mid x_i) = \frac{1}{1 + e^{x_i'\beta}},
+$$ giving log-likelihood $$
 \ell(\beta) = \sum_{i=1}^n \bigl[y_i x_i'\beta - \log(1 + e^{x_i'\beta})\bigr].
-$$
-The gradient and Hessian are
-$$
+$$ The gradient and Hessian are $$
 \nabla\ell = X'(y - p), \qquad H = -X'WX,
-$$
-where $p_i = \sigma(x_i'\beta)$ and $W = \mathrm{diag}(p_i(1-p_i))$.
-
+$$ where $p_i = \sigma(x_i'\beta)$ and $W = \mathrm{diag}(p_i(1-p_i))$.
 Newton's update is $\beta \leftarrow \beta + (X'WX)^{-1}X'(y-p)$.
 
 ```{python}
@@ -72,11 +92,15 @@ X = np.column_stack([np.ones(len(y)), X_cov])
 n, p = X.shape
 
 def sigmoid(z):
-    return np.where(z >= 0, 1 / (1 + np.exp(-z)), np.exp(z) / (1 + np.exp(z)))
+    """Numerically stable sigmoid function."""
+    return np.where(z >= 0,
+                    1 / (1 + np.exp(-z)),
+                    np.exp(z) / (1 + np.exp(z)))
 
 def newton_logistic(X, y, tol=1e-8, max_iter=200):
+    """Newton-Raphson for logistic regression MLE."""
     beta = np.zeros(X.shape[1])
-    for _ in range(max_iter):
+    for it in range(max_iter):
         p_vec = sigmoid(X @ beta)
         W = p_vec * (1 - p_vec)
         grad = X.T @ (y - p_vec)
@@ -88,38 +112,45 @@ def newton_logistic(X, y, tol=1e-8, max_iter=200):
     return beta, H
 
 beta_mle, H_mle = newton_logistic(X, y)
-print("Newton MLE coefficients:")
 labels = ["Intercept", "log(crl.tot)", "log(dollar)", "log(bang)",
           "log(money)", "log(n000)", "log(make)"]
+print("Newton MLE coefficients:")
 for lbl, b in zip(labels, beta_mle):
-    print(f"  {lbl:<18}: {b:+.4f}")
+    print(f"  {lbl:<18}: {b:+.6f}")
 ```
 
 ```{python}
-# Verify with sklearn (C large = near-flat prior)
+# Verify with sklearn (no regularization = flat prior)
 lr = LogisticRegression(penalty=None, solver="lbfgs", max_iter=1000)
 lr.fit(X_cov, y)
 beta_sklearn = np.concatenate([[lr.intercept_[0]], lr.coef_[0]])
-print("\nSklearn coefficients:")
+
+print("Sklearn coefficients:")
 for lbl, b in zip(labels, beta_sklearn):
-    print(f"  {lbl:<18}: {b:+.4f}")
+    print(f"  {lbl:<18}: {b:+.6f}")
 
 max_diff = np.max(np.abs(beta_mle - beta_sklearn))
 print(f"\nMax absolute difference: {max_diff:.2e}")
 ```
 
-The Newton MLE and sklearn agree to within numerical tolerance, confirming the implementation is correct. All six log-transformed features have positive coefficients, consistent with the intuition that higher capital letter usage, dollar signs, and spam-indicator words all increase the probability of spam.
+The custom Newton-Raphson implementation matches the sklearn estimates
+to within tight numerical tolerance, validating the manual algorithm.
+Five of the six log-transformed features exhibit positive coefficients,
+consistent with the intuition that higher capital letter usage, dollar
+signs, and spam-indicator words increase the spam probability.
 
 ## (b) — Laplace Posterior Normal Approximation
 
-With the flat prior $\beta_j \overset{\text{i.i.d.}}{\sim} \text{Uniform}(-\infty, \infty)$, the log-posterior equals the log-likelihood, so the posterior Hessian equals $H(\hat\beta)$ and the Laplace approximation is
-$$
+With the flat prior
+$\beta_j \overset{\text{i.i.d.}}{\sim} \text{Uniform}(-\infty, \infty)$,
+the log-posterior equals the log-likelihood, so the Laplace
+approximation is $$
 \beta \mid \text{data} \approx N\!\left(\hat\beta,\; (X'\hat{W}X)^{-1}\right).
-$$
-The posterior standard errors are $\sqrt{\mathrm{diag}\!\left[(X'\hat{W}X)^{-1}\right]}$.
+$$ The posterior standard errors are
+$\sqrt{\mathrm{diag}\!\left[(X'\hat{W}X)^{-1}\right]}$.
 
 ```{python}
-Fisher_info = -(H_mle)   # X'WX at beta_mle
+Fisher_info = -H_mle                      # X'WX at MLE
 post_cov = np.linalg.inv(Fisher_info)
 post_se = np.sqrt(np.diag(post_cov))
 
@@ -131,10 +162,22 @@ se_sklearn = np.sqrt(np.diag(np.linalg.inv(Fisher_sk)))
 
 print(f"{'':18} {'Laplace SE':>12} {'Sklearn SE':>12}")
 for lbl, se1, se2 in zip(labels, post_se, se_sklearn):
-    print(f"  {lbl:<18} {se1:12.4f} {se2:12.4f}")
+    print(f"  {lbl:<18} {se1:12.6f} {se2:12.6f}")
 ```
 
-The Laplace posterior standard errors match the frequentist standard errors from sklearn (both derived from the observed Fisher information), as expected under a flat prior where the posterior is proportional to the likelihood.
+The Laplace posterior standard errors match the frequentist standard
+errors exactly, as expected under a flat prior where the posterior is
+proportional to the likelihood.
+
+\newpage
+
+### Validation with statsmodels
+
+```{python}
+logit_model = sm.Logit(y, X)
+result = logit_model.fit(disp=0)
+result.summary(xname=labels)
+```
 
 \newpage
 
@@ -142,47 +185,51 @@ The Laplace posterior standard errors match the frequentist standard errors from
 
 ## (a) — Probit Log-Likelihood, Gradient, and Hessian
 
-The probit model specifies $P(y_i = 1 \mid x_i) = \Phi(x_i'\beta)$ where $\Phi$ is the standard normal CDF with density $\phi = \Phi'$. The log-likelihood is
-$$
+The probit model specifies $P(y_i = 1 \mid x_i) = \Phi(x_i'\beta)$ where
+$\Phi$ is the standard normal CDF with density $\phi = \Phi'$.
+
+**Log-likelihood.** $$
 \ell(\beta) = \sum_{i=1}^n \bigl[y_i \log \Phi(\eta_i) + (1-y_i)\log(1-\Phi(\eta_i))\bigr], \quad \eta_i = x_i'\beta.
 $$
 
-**Gradient.** Differentiating with respect to $\beta$:
+**Gradient.** Differentiating with respect to $\beta$: $$
+\nabla\ell(\beta) = \sum_{i=1}^n r_i\, x_i = X'r,
+$$ where $$
+r_i = \phi(\eta_i)\!\left[\frac{y_i}{\Phi(\eta_i)} - \frac{1-y_i}{1-\Phi(\eta_i)}\right].
 $$
-\nabla\ell(\beta) = \sum_{i=1}^n \underbrace{\left[\frac{y_i \phi(\eta_i)}{\Phi(\eta_i)} - \frac{(1-y_i)\phi(\eta_i)}{1-\Phi(\eta_i)}\right]}_{=:\, r_i} x_i = X'r,
-$$
-where $r_i = \phi(\eta_i)\!\left[\dfrac{y_i}{\Phi(\eta_i)} - \dfrac{1-y_i}{1-\Phi(\eta_i)}\right]$.
 
-**Hessian.** Using $\frac{d}{d\eta}\phi(\eta) = -\eta\,\phi(\eta)$ and $\frac{d}{d\eta}\Phi(\eta) = \phi(\eta)$:
-$$
-\frac{\partial r_i}{\partial \eta_i} = y_i\frac{-\eta_i\phi(\eta_i)\Phi(\eta_i)-\phi(\eta_i)^2}{\Phi(\eta_i)^2} - (1-y_i)\frac{-\eta_i\phi(\eta_i)(1-\Phi(\eta_i))+\phi(\eta_i)^2}{(1-\Phi(\eta_i))^2}.
-$$
-Define
-$$
+**Hessian.** Using $\phi'(\eta) = -\eta\,\phi(\eta)$, define $$
 d_i := \frac{\partial r_i}{\partial \eta_i} = -\phi(\eta_i)^2\!\left[\frac{y_i}{\Phi(\eta_i)^2} + \frac{1-y_i}{(1-\Phi(\eta_i))^2}\right] - \eta_i\phi(\eta_i)\!\left[\frac{y_i}{\Phi(\eta_i)} - \frac{1-y_i}{1-\Phi(\eta_i)}\right].
-$$
-Then
-$$
-\nabla^2\ell(\beta) = \sum_{i=1}^n d_i\, x_i x_i' = X'DX, \quad D = \mathrm{diag}(d_i).
-$$
-Since $d_i < 0$ for all $i$, the Hessian is negative semidefinite and $\ell$ is concave.
+$$ Then $$
+\nabla^2\ell(\beta) = X'DX, \quad D = \mathrm{diag}(d_i).
+$$ Since $d_i < 0$ for all $i$, the Hessian is negative semidefinite and
+$\ell$ is concave.
 
 ## (b) — Posterior Normal Approximation
 
-With flat prior, the posterior is proportional to the likelihood. At the MLE $\hat\beta$, the Laplace approximation gives
+With the flat prior $p(\beta) \propto 1$, the posterior is proportional
+to the likelihood. The MAP estimate equals the MLE $\hat{\beta}$, and
+the Laplace approximation is $$
+\beta \mid \text{data} \approx \mathcal{N}\!\left(\hat{\beta},\; \left[-\nabla^2 \ell(\hat{\beta})\right]^{-1}\right) = \mathcal{N}\!\left(\hat{\beta},\; (X'\hat{D}X)^{-1}\right),
+$$ where $\hat{D}$ is the diagonal weight matrix evaluated at
+$\hat{\beta}$, with entries $$
+\hat{d}_{ii} = \frac{\phi(\hat\eta_i)^2}{\Phi(\hat\eta_i)(1 - \Phi(\hat\eta_i))} + \hat\eta_i \phi(\hat\eta_i)\left[\frac{y_i}{\Phi(\hat\eta_i)} - \frac{1-y_i}{1-\Phi(\hat\eta_i)}\right]
 $$
-\beta \mid \text{data} \approx N\!\left(\hat\beta,\; \bigl[-\nabla^2\ell(\hat\beta)\bigr]^{-1}\right) = N\!\left(\hat\beta,\; (-X'\hat{D}X)^{-1}\right),
-$$
-where $\hat{D} = D$ evaluated at $\hat\beta$.
+
+, where $\hat\eta_i=x_i'\hat \beta$.
 
 ## (c) — Probit Regression on Frogs Dataset
 
-We fit the probit model to the frogs dataset (Lecture 17), using `pres.abs` as the binary response and altitude, distance, NoOfPools, avrain, meanmin, and meanmax as covariates.
+We fit the probit model to the frogs dataset (Lecture 17), using
+`pres.abs` as the binary response and altitude, distance, NoOfPools,
+avrain, meanmin, and meanmax as covariates.
 
 ```{python}
 frogs = pd.read_csv("frogs.csv")
 y_f = frogs["pres.abs"].values.astype(float)
-X_f_raw = frogs[["altitude","distance","NoOfPools","avrain","meanmin","meanmax"]].values
+columns = ["altitude", "distance", "NoOfPools",
+           "avrain", "meanmin", "meanmax"]
+X_f_raw = frogs[columns].values
 X_f = np.column_stack([np.ones(len(y_f)), X_f_raw])
 n_f = len(y_f)
 
@@ -191,13 +238,11 @@ def probit_fit(X, y, tol=1e-9, max_iter=300):
     beta = np.zeros(X.shape[1])
     for _ in range(max_iter):
         eta = X @ beta
-        Phi = norm.cdf(eta)
+        Phi = np.clip(norm.cdf(eta), 1e-12, 1 - 1e-12)
         phi = norm.pdf(eta)
-        # Clip to avoid division by zero
-        Phi = np.clip(Phi, 1e-12, 1-1e-12)
         r = y * phi / Phi - (1 - y) * phi / (1 - Phi)
-        d = -(phi**2) * (y / Phi**2 + (1-y) / (1-Phi)**2) \
-            - eta * phi * (y / Phi - (1-y) / (1-Phi))
+        d = -(phi**2) * (y / Phi**2 + (1 - y) / (1 - Phi)**2) \
+            - eta * phi * (y / Phi - (1 - y) / (1 - Phi))
         grad = X.T @ r
         H = (X.T * d) @ X
         step = np.linalg.solve(-H, grad)
@@ -210,25 +255,37 @@ beta_probit, H_probit = probit_fit(X_f, y_f)
 post_cov_probit = np.linalg.inv(-H_probit)
 post_sd_probit = np.sqrt(np.diag(post_cov_probit))
 
-labels_f = ["Intercept","altitude","distance","NoOfPools","avrain","meanmin","meanmax"]
+labels_f = ["Intercept"] + columns
 print("Probit MLE and posterior SDs (Laplace):")
-print(f"{'':14} {'MLE':>9} {'Post SD':>9}")
+print(f"{'':14} {'MLE':>10} {'Post SD':>10}")
 for lbl, b, s in zip(labels_f, beta_probit, post_sd_probit):
-    print(f"  {lbl:<14} {b:+9.4f} {s:9.4f}")
+    print(f"  {lbl:<14} {b:+10.4f} {s:10.4f}")
+```
+
+### Validation with statsmodels
+
+```{python}
+# Verify with statsmodels
+probit_sm = sm.Probit(y_f, X_f).fit(disp=False)
+probit_sm.summary(xname=labels_f)
 ```
 
 ## (d) — Comparison with Frequentist Standard Errors
 
 ```{python}
-probit_sm = sm.Probit(y_f, X_f).fit(disp=False)
 se_freq = probit_sm.bse
 
-print(f"{'':14} {'Bayes Post SD':>14} {'Freq SE':>10}")
+print(f"{'':14} {'Bayes Post SD':>14} {'Freq SE':>10} {'Ratio':>8}")
 for lbl, s1, s2 in zip(labels_f, post_sd_probit, se_freq):
-    print(f"  {lbl:<14} {s1:14.4f} {s2:10.4f}")
+    print(f"  {lbl:<14} {s1:14.4f} {s2:10.4f} {s1/s2:8.4f}")
 ```
 
-The Bayesian posterior standard deviations (Laplace approximation) are essentially identical to the frequentist standard errors. This is expected: both are derived from the observed Fisher information $-H(\hat\beta) = X'\hat{D}X$. The two frameworks coincide exactly when using a flat prior, since the posterior curvature equals the likelihood curvature.
+The Bayesian posterior standard deviations (Laplace approximation) are
+essentially identical to the frequentist standard errors (ratios
+$\approx 1.0$). Both are derived from the observed Fisher information
+$-H(\hat\beta) = X'\hat{D}X$. The two frameworks coincide exactly when
+using a flat prior, since the posterior curvature equals the likelihood
+curvature.
 
 \newpage
 
@@ -236,46 +293,45 @@ The Bayesian posterior standard deviations (Laplace approximation) are essential
 
 ## (a) — Marginal Posterior of $(\beta_0, \beta_1)$ Under Laplace Errors
 
-With Laplace errors $\epsilon_i \overset{\text{i.i.d.}}{\sim} \text{Lap}(0, \sigma)$, the likelihood is
-$$
-p(y \mid \beta_0,\beta_1,\sigma) = \prod_{i=1}^n \frac{1}{2\sigma} \exp\!\left(-\frac{|y_i - \beta_0 - \beta_1 x_i|}{\sigma}\right) = (2\sigma)^{-n} \exp\!\left(-\frac{S(\beta_0,\beta_1)}{\sigma}\right).
-$$
-With the prior $p(\beta_0,\beta_1,\log\sigma) \propto 1$, equivalently $p(\sigma) \propto 1/\sigma$, the joint posterior is
-$$
+With Laplace errors
+$\epsilon_i \overset{\text{i.i.d.}}{\sim} \text{Lap}(0, \sigma)$, the
+likelihood is $$
+p(y \mid \beta_0,\beta_1,\sigma) = (2\sigma)^{-n} \exp\!\left(-\frac{S(\beta_0,\beta_1)}{\sigma}\right).
+$$ With the prior $p(\beta_0,\beta_1,\log\sigma) \propto 1$,
+equivalently $p(\sigma) \propto 1/\sigma$, the joint posterior is $$
 p(\beta_0,\beta_1,\sigma \mid \text{data}) \propto \sigma^{-n-1} \exp\!\left(-\frac{S(\beta_0,\beta_1)}{\sigma}\right).
-$$
-Integrating out $\sigma > 0$: let $u = S(\beta_0,\beta_1)/\sigma$, so $\sigma = S/u$ and $d\sigma = -S/u^2\,du$:
-$$
+$$ Integrating out $\sigma > 0$ via the substitution $u = S/\sigma$: $$
 \int_0^\infty \sigma^{-n-1} e^{-S/\sigma}\,d\sigma = S^{-n}\int_0^\infty u^{n-1} e^{-u}\,du = S^{-n}\,\Gamma(n).
-$$
-Hence
-$$
+$$ Hence $$
 \boxed{f_{\beta_0,\beta_1 \mid \text{data}}(\beta_0,\beta_1) \propto \left(\frac{1}{S(\beta_0,\beta_1)}\right)^n.}
 $$
 
 ## (b) — Fitting to Pearson Height Data
 
-We approximate the joint density over a $200 \times 200$ grid of $(\beta_0,\beta_1)$ and compute posterior means and standard errors.
+We approximate the joint density over a dense $300 \times 300$ grid of
+$(\beta_0,\beta_1)$ centered at the OLS estimates.
 
 ```{python}
 heights = pd.read_csv("PearsonHeightData.txt", sep="\t")
 x_h = heights["Father"].values
 y_h = heights["Son"].values
 n_h = len(x_h)
-print(f"n = {n_h}, Father mean = {x_h.mean():.2f}, Son mean = {y_h.mean():.2f}")
+print(f"n = {n_h}, Father mean = {x_h.mean():.2f}, "
+      f"Son mean = {y_h.mean():.2f}")
 
-# Grid over (beta0, beta1)
-# OLS estimates to center the grid
+# OLS to center the grid
 XH = np.column_stack([np.ones(n_h), x_h])
 beta_ols = np.linalg.lstsq(XH, y_h, rcond=None)[0]
-print(f"OLS estimates: beta0 = {beta_ols[0]:.4f}, beta1 = {beta_ols[1]:.4f}")
+print(f"OLS: beta0 = {beta_ols[0]:.4f}, beta1 = {beta_ols[1]:.4f}")
 
+# Dense grid
 b0_grid = np.linspace(beta_ols[0] - 15, beta_ols[0] + 15, 300)
-b1_grid = np.linspace(beta_ols[1] - 0.3,  beta_ols[1] + 0.3,  300)
-B0, B1 = np.meshgrid(b0_grid, b1_grid)  # shape (300, 300)
+b1_grid = np.linspace(beta_ols[1] - 0.3, beta_ols[1] + 0.3, 300)
+B0, B1 = np.meshgrid(b0_grid, b1_grid)
 
 # S(beta0, beta1) = sum |yi - beta0 - beta1*xi|
-resid = y_h[None, None, :] - B0[:, :, None] - B1[:, :, None] * x_h[None, None, :]
+resid = (y_h[None, None, :] - B0[:, :, None]
+         - B1[:, :, None] * x_h[None, None, :])
 S = np.sum(np.abs(resid), axis=2)
 
 # Log unnormalized posterior: -n * log(S)
@@ -283,7 +339,6 @@ log_post = -n_h * np.log(S)
 log_post -= log_post.max()
 post = np.exp(log_post)
 
-# Normalize
 db0 = b0_grid[1] - b0_grid[0]
 db1 = b1_grid[1] - b1_grid[0]
 Z = post.sum() * db0 * db1
@@ -303,21 +358,27 @@ print(f"  beta1: mean = {mean_b1:.4f}, SE = {se_b1:.4f}")
 ```
 
 ```{python}
-fig, axes = plt.subplots(1, 2, figsize=(11, 4))
+fig, axes = plt.subplots(1, 2)
 
-axes[0].contourf(B0, B1, post, levels=20, cmap="Blues")
-axes[0].axvline(mean_b0, color="red", lw=1.5, label=f"Post mean β₀={mean_b0:.2f}")
-axes[0].axhline(mean_b1, color="orange", lw=1.5, label=f"Post mean β₁={mean_b1:.3f}")
-axes[0].set_xlabel("β₀"); axes[0].set_ylabel("β₁")
+c = axes[0].contourf(B0, B1, post, levels=20, cmap="Blues")
+fig.colorbar(c, ax=axes[0], label="Posterior density")
+axes[0].axvline(mean_b0, color="red", lw=1.2, ls="--",
+                label=f"$\\hat{{\\beta}}_0={mean_b0:.2f}$")
+axes[0].axhline(mean_b1, color="orange", lw=1.2, ls="--",
+                label=f"$\\hat{{\\beta}}_1={mean_b1:.3f}$")
+axes[0].set_xlabel(r"$\beta_0$")
+axes[0].set_ylabel(r"$\beta_1$")
 axes[0].set_title("Joint posterior (Laplace errors)")
-axes[0].legend(fontsize=8)
+axes[0].legend(fontsize=9, frameon=False)
 
 # Marginal posteriors
 marg_b0 = post.sum(axis=0) * db1
 marg_b1 = post.sum(axis=1) * db0
-axes[1].plot(b0_grid, marg_b0, label="Marginal β₀")
-axes[1].set_xlabel("β₀"); axes[1].set_title("Marginal posterior of β₀")
-axes[1].legend()
+axes[1].plot(b0_grid, marg_b0, lw=2, color="steelblue",
+             label=r"$p(\beta_0 \mid \mathrm{data})$")
+axes[1].set_xlabel(r"$\beta_0$")
+axes[1].set_title(r"Marginal posterior of $\beta_0$")
+axes[1].legend(frameon=False)
 plt.tight_layout()
 plt.show()
 ```
@@ -325,22 +386,99 @@ plt.show()
 ## (c) — Comparison with Normal-Error Regression
 
 ```{python}
-print("Comparison of intercept and slope estimates:")
-print(f"{'Method':<28} {'beta0':>8} {'SE(beta0)':>10} {'beta1':>8} {'SE(beta1)':>10}")
-
-# Normal OLS: manual computation
 beta_ols_h = np.linalg.solve(XH.T @ XH, XH.T @ y_h)
 resid_ols_h = y_h - XH @ beta_ols_h
 sigma2_ols_h = (resid_ols_h @ resid_ols_h) / (n_h - 2)
 ols_se_h = np.sqrt(sigma2_ols_h * np.diag(np.linalg.inv(XH.T @ XH)))
 
-print(f"  {'OLS (Normal errors)':<26} {beta_ols_h[0]:8.4f} {ols_se_h[0]:10.4f} "
-      f"{beta_ols_h[1]:8.4f} {ols_se_h[1]:10.4f}")
-print(f"  {'Bayesian (Laplace errors)':<26} {mean_b0:8.4f} {se_b0:10.4f} "
-      f"{mean_b1:8.4f} {se_b1:10.4f}")
+print("Comparison of intercept and slope estimates:")
+print(f"{'Method':<28} {'beta0':>8} {'SE(b0)':>9} "
+      f"{'beta1':>8} {'SE(b1)':>9}")
+print(f"  {'OLS (Normal errors)':<26} {beta_ols_h[0]:8.4f} "
+      f"{ols_se_h[0]:9.4f} {beta_ols_h[1]:8.4f} {ols_se_h[1]:9.4f}")
+print(f"  {'Bayesian (Laplace errors)':<26} {mean_b0:8.4f} "
+      f"{se_b0:9.4f} {mean_b1:8.4f} {se_b1:9.4f}")
 ```
 
-The intercept and slope estimates from the Laplace-error model are very close to the OLS estimates. This is not surprising: for large $n$ (over 1000 observations here), both methods produce similar point estimates due to the concentration of the posterior. The standard errors are also comparable. The Laplace-error model is more robust to outliers in principle (it corresponds to least absolute deviations), but the Pearson height data is well-behaved enough that the two models agree.
+Comparing the two models reveals that the Bayesian Laplace estimates are
+largely consistent with the normal OLS estimates, though with a slight
+structural shift (a marginally higher intercept and lower slope) and
+slightly tighter standard errors. Because the Laplace-error
+specification is mathematically equivalent to Least Absolute Deviations
+(LAD) regression, it models the conditional median rather than the
+conditional mean. The overall close agreement between the two frameworks
+confirms that the Pearson height dataset is well-behaved and relatively
+free of extreme outliers that would otherwise pull the OLS estimates
+away from the robust LAD line.
+
+### Validation with statsmodels
+
+```{python}
+# We reuse the XH (with intercept) and y_h arrays you defined in Problem 3
+# Fit a Quantile Regression model
+quant_reg = sm.QuantReg(y_h, XH)
+
+# Fit for the median (q=0.5), which is exactly Least Absolute Deviations (LAD)
+lad_result = quant_reg.fit(q=0.5)
+
+print("Frequentist LAD (Quantile Regression) Estimates:")
+print(f"  beta0: {lad_result.params[0]:.4f}")
+print(f"  beta1: {lad_result.params[1]:.4f}")
+print("-" * 45)
+lad_result.summary(xname=["Intercept", "Father_Height"])
+```
+
+### Comparison of Bayesian Laplace Regression and Frequentist LAD
+
+While ordinary least squares (OLS) assumes normally distributed errors,
+both the Bayesian Laplace model and Frequentist Least Absolute
+Deviations (LAD) regression assume Laplace-distributed errors.
+Consequently, both methods are robust to outliers and target the
+conditional median rather than the mean. However, despite sharing the
+same underlying likelihood function, their point estimates and standard
+errors differ slightly due to the fundamental divide between Bayesian
+integration and frequentist optimization.
+
+**1. Point Estimates: Posterior Mean vs. Posterior Mode (MAP)** \*
+**Frequentist LAD:** Quantile regression relies on linear programming to
+find the exact coefficients that minimize the sum of absolute
+deviations. In Bayesian terms, this corresponds exactly to finding the
+Maximum A Posteriori (MAP) estimate—the absolute highest peak (or
+**mode**) of the posterior distribution. \* **Bayesian Laplace:** The
+grid approximation (and MCMC) evaluates the entire posterior
+distribution and computes the **expected value (mean)**. Because the
+Laplace posterior has sharp, non-differentiable ridges and is not
+perfectly symmetric in finite samples, the center of mass (mean)
+naturally sits in a slightly different location than the absolute peak
+(mode). This explains why the frequentist LAD slope ($\approx 0.482$)
+differs slightly from the Bayesian slope ($\approx 0.491$).
+
+**2. Standard Errors: Exact Variance vs. Asymptotic Sparsity** \*
+**Bayesian Standard Errors:** The Bayesian standard errors
+($\approx 1.72$ for the intercept) are derived directly from the exact
+variance of the computed posterior grid. They provide a precise,
+finite-sample quantification of uncertainty conditional on the observed
+data. \* **Frequentist Standard Errors:** Calculating standard errors
+for absolute deviations in frequentist statistics is notoriously
+difficult because the absolute value function is non-differentiable at
+zero. Packages like `statsmodels` must rely on asymptotic theory,
+requiring an estimation of "sparsity"—the density of the residuals
+exactly at the median. Because sparsity is difficult to estimate,
+frequentist LAD standard errors ($\approx 2.18$) are often
+approximations and tend to be wider and more conservative than their
+Bayesian counterparts.
+
+**Conclusion** Both methods successfully robustify the regression line
+against the leverage points that influence standard OLS. However, the
+Bayesian approach is arguably superior for inference in this context: it
+avoids the asymptotic approximations required by frequentist LAD to
+compute standard errors, providing an exact, finite-sample measure of
+uncertainty directly from the posterior geometry.
+
+\*\* Summary of what to take away: \*\* \* LAD = Optimization (Finds the
+highest point / Mode). \* Bayesian = Integration (Finds the center of
+mass / Mean). \* LAD SEs = Guesses based on asymptotic limits
+("sparsity"). \* Bayesian SEs = Exact spread of your posterior grid.
 
 \newpage
 
@@ -348,47 +486,39 @@ The intercept and slope estimates from the Laplace-error model are very close to
 
 ## (a) — Joint Posterior
 
-The model is $y_i = \beta_0 + \beta_1 x_i + \beta_2 (x_i - c)_+ + \epsilon_i$ with $\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0,\sigma^2)$. The likelihood is
-$$
+The model is
+$y_i = \beta_0 + \beta_1 x_i + \beta_2 (x_i - c)_+ + \epsilon_i$ with
+$\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0,\sigma^2)$. The likelihood
+is $$
 p(y \mid \beta, c, \sigma) = (2\pi\sigma^2)^{-n/2} \exp\!\left(-\frac{S(\beta,c)}{2\sigma^2}\right).
-$$
-The prior $p(\beta_0,\beta_1,\beta_2,\log\sigma) \propto 1$ implies $p(\sigma) \propto 1/\sigma$, and $c \sim \text{Uniform}(2,60)$, so $p(c) \propto I\{2 < c < 60\}$. Multiplying:
-$$
-\text{posterior}(\beta,c,\sigma) \propto \sigma^{-n-1} \exp\!\left(-\frac{S(\beta,c)}{2\sigma^2}\right) I\{\sigma > 0\} I\{2 < c < 60\}. \quad\checkmark
+$$ The prior $p(\beta_0,\beta_1,\beta_2,\log\sigma) \propto 1$ implies
+$p(\sigma) \propto 1/\sigma$, and $c \sim \text{Uniform}(2,60)$.
+Multiplying: $$
+\text{posterior}(\beta,c,\sigma) \propto \sigma^{-n-1} \exp\!\left(-\frac{S(\beta,c)}{2\sigma^2}\right) I\{\sigma > 0\}\, I\{2 < c < 60\}. \quad\checkmark
 $$
 
 ## (b) — Pythagorean Decomposition
 
-Let $X_c$ be the $n \times 3$ matrix with rows $(1, x_i, (x_i - c)_+)$. Then $S(\beta,c) = \|y - X_c\beta\|^2$ and $\hat\beta(c) = (X_c'X_c)^{-1}X_c'y$. We complete the square:
-$$
-S(\beta,c) = \|y - X_c\hat\beta(c) - X_c(\beta - \hat\beta(c))\|^2
-= \|y - X_c\hat\beta(c)\|^2 + (\beta - \hat\beta(c))'X_c'X_c(\beta - \hat\beta(c)),
-$$
-since the cross term $-(y - X_c\hat\beta(c))'X_c(\beta-\hat\beta(c)) = 0$ by the normal equations $X_c'(y - X_c\hat\beta(c)) = 0$. Hence
-$$
-S(\beta,c) = S(\hat\beta(c),c) + (\beta - \hat\beta(c))'X_c'X_c(\beta - \hat\beta(c)). \quad\checkmark
-$$
+Let $X_c$ have rows $(1, x_i, (x_i - c)_+)$ and
+$\hat\beta(c) = (X_c'X_c)^{-1}X_c'y$. Then
+$S(\beta,c) = \|y - X_c\beta\|^2$. Completing the square: $$
+S(\beta,c) = \|y - X_c\hat\beta(c)\|^2 + (\beta - \hat\beta(c))' X_c'X_c (\beta - \hat\beta(c)),
+$$ since the cross term vanishes by the normal equations
+$X_c'(y - X_c\hat\beta(c)) = 0$. $\checkmark$
 
 ## (c) — Posterior of $(c, \sigma)$
 
-Integrating $\beta$ from the joint posterior using (b):
-$$
-\int \exp\!\left(-\frac{S(\beta,c)}{2\sigma^2}\right)d\beta = e^{-S(\hat\beta,c)/(2\sigma^2)}\int \exp\!\!\left(-\frac{(\beta-\hat\beta)'X_c'X_c(\beta-\hat\beta)}{2\sigma^2}\right)d\beta.
-$$
-The integral is $(2\pi\sigma^2)^{p/2}|X_c'X_c|^{-1/2}$ with $p=3$. Therefore
-$$
-\text{posterior}(c,\sigma) \propto \sigma^{-n-1} \cdot \sigma^p \cdot |X_c'X_c|^{-1/2} e^{-S(\hat\beta,c)/(2\sigma^2)} I\{\sigma>0\}I\{2<c<60\}
-= \sigma^{-(n-p)-1}|X_c'X_c|^{-1/2}e^{-S(\hat\beta,c)/(2\sigma^2)} I\{...\}. \quad\checkmark
+Integrating $\beta$ using the Pythagorean decomposition: $$
+\int \exp\!\left(-\frac{(\beta-\hat\beta)'X_c'X_c(\beta-\hat\beta)}{2\sigma^2}\right)d\beta = (2\pi\sigma^2)^{p/2}|X_c'X_c|^{-1/2}.
+$$ Therefore $$
+\text{posterior}(c,\sigma) \propto \sigma^{-(n-p)-1}\,|X_c'X_c|^{-1/2}\exp\!\left(-\frac{S(\hat\beta,c)}{2\sigma^2}\right) I\{\sigma>0\}\,I\{2<c<60\}. \quad\checkmark
 $$
 
 ## (d) — Marginal Posterior of $c$
 
-Integrating $\sigma > 0$ via $u = S(\hat\beta,c)/(2\sigma^2)$:
-$$
-\int_0^\infty \sigma^{-(n-p)-1} e^{-S/(2\sigma^2)}\,d\sigma = S^{-(n-p)/2}\int_0^\infty u^{(n-p)/2-1}e^{-u}\,du \cdot \tfrac{1}{2} = \tfrac{1}{2}\Gamma\!\bigl(\tfrac{n-p}{2}\bigr)\cdot S^{-(n-p)/2}.
-$$
-Hence
-$$
+Integrating $\sigma > 0$ via $u = S(\hat\beta,c)/(2\sigma^2)$: $$
+\int_0^\infty \sigma^{-(n-p)-1} e^{-S/(2\sigma^2)}\,d\sigma = \tfrac{1}{2}\,\Gamma\!\bigl(\tfrac{n-p}{2}\bigr)\cdot S^{-(n-p)/2}.
+$$ Hence $$
 \boxed{\text{posterior}(c) \propto I\{2 < c < 60\}\,|X_c'X_c|^{-1/2}\left(\frac{1}{S(\hat\beta(c),c)}\right)^{(n-p)/2}.} \quad\checkmark
 $$
 
@@ -399,7 +529,8 @@ wages = pd.read_csv("wagedata.csv")
 x_w = wages["Exper"].values.astype(float)
 y_w = np.log(wages["WeeklyEarnings"].values.astype(float))
 n_w = len(x_w)
-print(f"Wages dataset: n = {n_w}, Exper range [{x_w.min():.0f}, {x_w.max():.0f}]")
+print(f"Wages dataset: n = {n_w}, "
+      f"Exper range [{x_w.min():.0f}, {x_w.max():.0f}]")
 
 def hinge(x, c):
     return np.maximum(x - c, 0)
@@ -408,16 +539,16 @@ def compute_Xc(x, c):
     return np.column_stack([np.ones(len(x)), x, hinge(x, c)])
 
 c_grid = np.linspace(2.01, 59.99, 500)
+p_spline = 3
 log_post_c = np.zeros(len(c_grid))
 
-p_spline = 3
 for k, c in enumerate(c_grid):
     Xc = compute_Xc(x_w, c)
     XtX = Xc.T @ Xc
     beta_hat = np.linalg.solve(XtX, Xc.T @ y_w)
     resid = y_w - Xc @ beta_hat
     S = resid @ resid
-    sign, logdet = np.linalg.slogdet(XtX)
+    _, logdet = np.linalg.slogdet(XtX)
     log_post_c[k] = -0.5 * logdet - ((n_w - p_spline) / 2) * np.log(S)
 
 log_post_c -= log_post_c.max()
@@ -432,29 +563,39 @@ ci_lo = c_grid[np.searchsorted(cdf_c, 0.025)]
 ci_hi = c_grid[np.searchsorted(cdf_c, 0.975)]
 
 print(f"\nPosterior of c:")
-print(f"  Mean          = {mean_c:.2f} years")
-print(f"  95% CI        = [{ci_lo:.2f}, {ci_hi:.2f}] years")
+print(f"  Mean     = {mean_c:.2f} years")
+print(f"  95% CI   = [{ci_lo:.2f}, {ci_hi:.2f}] years")
 
-plt.figure(figsize=(8, 4))
-plt.plot(c_grid, post_c, lw=2)
-plt.axvline(mean_c, color="red",    lw=1.5, linestyle="--", label=f"Mean = {mean_c:.1f}")
-plt.axvline(ci_lo,  color="orange", lw=1.5, linestyle=":",  label=f"95% CI = [{ci_lo:.1f}, {ci_hi:.1f}]")
-plt.axvline(ci_hi,  color="orange", lw=1.5, linestyle=":")
-plt.xlabel("c (years of experience)"); plt.ylabel("Posterior density")
-plt.title("Marginal posterior of changepoint c")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(c_grid, post_c, lw=2, color="steelblue")
+ax.axvline(mean_c, color="red", lw=1.5, ls="--",
+           label=f"Mean = {mean_c:.1f}")
+ax.axvline(ci_lo, color="darkorange", lw=1.5, ls=":",
+           label=f"95% CI = [{ci_lo:.1f}, {ci_hi:.1f}]")
+ax.axvline(ci_hi, color="darkorange", lw=1.5, ls=":")
+ax.set_xlabel("$c$ (years of experience)")
+ax.set_ylabel("Posterior density")
+ax.set_title("Marginal posterior of changepoint $c$")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 ```
 
-The posterior of $c$ is concentrated in the range of roughly 10–30 years of experience, suggesting the relationship between experience and log-wages changes slope around this point. The 95% credible interval quantifies the uncertainty about where this kink occurs.
+As shown in the marginal posterior density, the model confidently
+pinpoints a structural break in the experience-earnings profile. Rather
+than a broad spread, the changepoint $c$ is tightly clustered near 17
+years. The sharp peak at the mean (17.30) and the remarkably narrow 95%
+credible interval \[16.53, 18.04\] demonstrate that there is minimal
+uncertainty regarding where the slope changes.
 
 ## (f) — Posterior Samples and Fitted Curves
 
 ```{python}
-np.random.seed(42)
 N_samp = 100
 
 # Sample c from discrete posterior
-c_idx = np.random.choice(len(c_grid), size=N_samp, p=post_c / post_c.sum())
+c_idx = np.random.choice(len(c_grid), size=N_samp,
+                          p=post_c / post_c.sum())
 c_samp = c_grid[c_idx]
 
 beta_samp = np.zeros((N_samp, p_spline))
@@ -467,27 +608,41 @@ for j, c in enumerate(c_samp):
     resid = y_w - Xc @ beta_hat
     S = resid @ resid
     nu = n_w - p_spline
-    # sigma^2 ~ Inv-chi2(nu, S/nu): sigma^2 = S / chi2(nu)
+    # sigma^2 ~ Inv-chi2(nu, S/nu)
     sigma2 = S / np.random.chisquare(nu)
     sigma_samp[j] = np.sqrt(sigma2)
     # beta | c, sigma ~ N(beta_hat, sigma^2 (XtX)^{-1})
     L_c = np.linalg.cholesky(XtX)
-    beta_samp[j] = beta_hat + np.sqrt(sigma2) * solve_triangular(L_c.T, np.random.randn(p_spline), lower=False)
+    beta_samp[j] = (beta_hat
+        + np.sqrt(sigma2) * solve_triangular(
+            L_c.T, np.random.randn(p_spline), lower=False))
 
 x_plot = np.linspace(0, 63, 500)
-plt.figure(figsize=(9, 5))
-plt.scatter(x_w, y_w, s=4, alpha=0.2, color="gray", label="Data")
+
+fig, ax = plt.subplots()
+ax.scatter(x_w, y_w, s=6, alpha=0.2, color="gray",
+           label="Data", zorder=1)
 for j in range(N_samp):
     b0, b1, b2 = beta_samp[j]
-    c_j = c_samp[j]
-    y_curve = b0 + b1 * x_plot + b2 * hinge(x_plot, c_j)
-    plt.plot(x_plot, y_curve, lw=0.6, alpha=0.4, color="steelblue")
-plt.xlabel("Years of experience"); plt.ylabel("Log weekly earnings")
-plt.title("100 posterior sample curves (wages)")
-plt.legend(loc="upper left"); plt.tight_layout(); plt.show()
+    y_curve = b0 + b1 * x_plot + b2 * hinge(x_plot, c_samp[j])
+    lbl = "Posterior samples" if j == 0 else None
+    ax.plot(x_plot, y_curve, lw=0.4, alpha=0.15,
+            color="steelblue", label=lbl, zorder=2)
+ax.set_xlabel("Years of experience")
+ax.set_ylabel("Log weekly earnings")
+ax.set_title("100 posterior sample curves (wages changepoint model)")
+ax.legend(loc="upper left", frameon=False)
+plt.tight_layout()
+plt.show()
 ```
 
-The posterior sample curves show moderate uncertainty about the exact slope and changepoint location. Most curves show a positive relationship between experience and log-wages for low experience values, with a slope change at mid-career (roughly 10–30 years). The spread of the curves reflects genuine uncertainty about both $c$ and the regression coefficients $\beta$.
+While the underlying data points exhibit a wide variance in log weekly
+earnings, the 100 posterior sample curves are extremely tightly
+clustered. This narrow band of curves demonstrates that the model has
+very low uncertainty about the mean relationship itself. The sampled
+lines uniformly agree on a steep positive slope for the first \~17 years
+of experience, followed by a highly distinct changepoint where the
+earnings trajectory flattens out.
 
 \newpage
 
@@ -495,7 +650,13 @@ The posterior sample curves show moderate uncertainty about the exact slope and 
 
 ## (a) — Ridge Regression with Cross-Validation (Golf Trends)
 
-We build the truncated-power-basis design matrix $X$ with columns $1,\;(t-1),\;(t-2)_+,\ldots,(t-(n-1))_+$ and fit ridge regression penalizing $\beta_2,\ldots,\beta_{n-1}$ with tuning parameter $\lambda$.
+We build the truncated-power-basis design matrix $X$ with columns
+$1,\;(t-1),\;(t-2)_+,\ldots,(t-(n-1))_+$ and fit ridge regression
+penalizing $\beta_2,\ldots,\beta_{n-1}$.
+
+We use 5-fold cross-validation with folds assigned in temporal order (no
+shuffling), which avoids using future data to predict the past and is
+appropriate for this time series.
 
 ```{python}
 golf = pd.read_csv("GolfTrends13March2026.csv")
@@ -515,196 +676,248 @@ def build_spline_X(t):
     return X
 
 X_g = build_spline_X(t_g)
-n_pen = n_g - 2   # penalized columns: indices 2 .. n-1
-
-# Cross-validated ridge: penalize only columns 2..n-1
-# Use sklearn Ridge with a custom penalty structure via feature scaling trick.
-# We scale penalized columns so that sklearn's uniform lambda = our lambda.
-# Equivalently, grid-search lambda manually with KFold CV.
+n_pen = n_g - 2   # penalized columns: indices 2..n-1
 
 lambdas = np.logspace(-3, 6, 60)
 kf = KFold(n_splits=5, shuffle=False)
 cv_mse = np.zeros(len(lambdas))
 
-R_pen_idx = np.arange(2, n_g)  # penalized column indices
-
 for k_idx, lam in enumerate(lambdas):
     mse_folds = []
     for train_idx, val_idx in kf.split(y_g):
-        Xtr = X_g[train_idx]; ytr = y_g[train_idx]
-        Xval = X_g[val_idx];  yval = y_g[val_idx]
-        # Build ridge system: (X'X + lam*R) beta = X'y
-        XtX = Xtr.T @ Xtr
+        Xtr, ytr = X_g[train_idx], y_g[train_idx]
+        Xval, yval = X_g[val_idx], y_g[val_idx]
         R_mat = np.zeros((n_g, n_g))
         R_mat[2:, 2:] = np.eye(n_pen)
-        A = XtX + lam * R_mat
-        b_rhs = Xtr.T @ ytr
-        beta_r = np.linalg.solve(A, b_rhs)
+        A = Xtr.T @ Xtr + lam * R_mat
+        beta_r = np.linalg.solve(A, Xtr.T @ ytr)
         mse_folds.append(np.mean((yval - Xval @ beta_r) ** 2))
     cv_mse[k_idx] = np.mean(mse_folds)
 
 best_lam = lambdas[np.argmin(cv_mse)]
 print(f"Best lambda (CV) = {best_lam:.4g}")
 
-# Fit with full data at best lambda
+# Fit with full data
 R_mat_full = np.zeros((n_g, n_g))
 R_mat_full[2:, 2:] = np.eye(n_pen)
 A_full = X_g.T @ X_g + best_lam * R_mat_full
 beta_ridge = np.linalg.solve(A_full, X_g.T @ y_g)
 mu_ridge = X_g @ beta_ridge
 
-plt.figure(figsize=(11, 4))
-plt.plot(t_g, y_g, lw=1, alpha=0.6, label="Data")
-plt.plot(t_g, mu_ridge, lw=2.5, label=f"Ridge (λ={best_lam:.2g})")
-plt.xlabel("Month index (1 = Jan 2004)"); plt.ylabel("Google Trends score")
-plt.title("Golf trends — Ridge regression")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1, alpha=0.6, color="gray", label="Data")
+ax.plot(t_g, mu_ridge, lw=2.5, color="darkorange",
+        label=f"Ridge ($\\lambda={best_lam:.2g}$)")
+ax.set_xlabel("Month index (1 = Jan 2004)")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Golf trends — Ridge regression with CV")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 ```
 
-The CV-selected $\lambda$ produces a smooth trend that captures the broad multi-year pattern in golf search popularity without interpolating the data. The trend shows a general decline from a 2004–2010 peak, a mid-period trough, and a partial recovery — without chasing every seasonal oscillation.
+The CV-selected regularization parameter ($\lambda = 3.5 \times
+10^5$) produces a highly smoothed trend line that captures the broad,
+multi-year trajectory of golf search popularity without interpolating
+the data. It effectively filters out the stark seasonal oscillations,
+revealing a U-shaped macro pattern: a steady decline from the initial
+2004 peaks to a trough around 2015 (near month 140), followed by a
+gradual, partial recovery.
 
 ## (b) — Bayesian Inference
 
 ### Setup: Marginal Posterior of $\gamma$
 
-With prior $\beta_0, \beta_1 \overset{\text{i.i.d.}}{\sim} N(0,C)$ (flat as $C\to\infty$) and $\beta_j \overset{\text{i.i.d.}}{\sim} N(0,\gamma^2\sigma^2)$ for $j \ge 2$, plus flat priors on $\log\sigma$ and $\log\gamma \sim \text{Unif}(\text{low},\text{high})$, integrating out $\beta$ and $\sigma$ yields
-$$
-p(\gamma \mid y) \propto \gamma^{-(n-1)} \left|\tilde{X}_2'\tilde{X}_2 + \tfrac{1}{\gamma^2}I\right|^{-1/2} S^*(\gamma)^{-(n-2)/2} \cdot I\!\left\{\log\gamma \in [\text{low},\text{high}]\right\},
-$$
-where $\tilde{X}_2 = M_1 X_2$ (project out free columns), $M_1 = I - X_1(X_1'X_1)^{-1}X_1'$, and
-$$
-S^*(\gamma) = \tilde{y}'\!\left[I - \tilde{X}_2(\tilde{X}_2'\tilde{X}_2 + I/\gamma^2)^{-1}\tilde{X}_2'\right]\tilde{y}, \quad \tilde{y} = M_1 y.
-$$
-Conditional on $\gamma$: $\sigma^2 \mid \gamma, y \sim \text{Inv-}\chi^2(n-4,\; S^*(\gamma)/(n-4))$ and $\beta \mid \gamma, \sigma^2, y \sim N(\hat\beta(\gamma),\; \sigma^2(X'X + R/\gamma^2)^{-1})$.
+With prior $\beta_0, \beta_1 \overset{\text{i.i.d.}}{\sim} N(0,C)$ (flat
+as $C\to\infty$) and
+$\beta_j \overset{\text{i.i.d.}}{\sim} N(0,\gamma^2\sigma^2)$ for
+$j \ge 2$, plus flat priors on $\log\sigma$ and $\log\gamma$,
+integrating out $\beta$ and $\sigma$ yields a closed-form marginal
+posterior for $\gamma$. The key intermediate steps are:
+
+-   Project out the free columns ($\beta_0, \beta_1$) via
+    $M_1 = I - X_1(X_1'X_1)^{-1}X_1'$ to obtain $\tilde{y} = M_1 y$ and
+    $\tilde{X}_2 = M_1 X_2$.
+-   Use the SVD of $\tilde{X}_2$ to efficiently evaluate the
+    log-determinant and residual sum of squares as functions of
+    $\gamma$.
 
 ```{python}
-# Precompute SVD of X2_tilde = M1 X2 for efficient evaluation over gamma grid
-X1_g = X_g[:, :2]                # free columns
-X2_g = X_g[:, 2:]                # penalized columns
-Q1, _ = np.linalg.qr(X1_g)      # orthonormal basis for col(X1)
+X1_g = X_g[:, :2]                           # free columns
+X2_g = X_g[:, 2:]                           # penalized columns
+Q1, _ = np.linalg.qr(X1_g)
 y_tilde = y_g - Q1 @ (Q1.T @ y_g)          # M1 y
 X2_tilde = X2_g - Q1 @ (Q1.T @ X2_g)       # M1 X2
 
-# SVD of X2_tilde: X2_tilde = U S V'
 U2, sv2, Vt2 = lsvd(X2_tilde, full_matrices=False)
 sv2_sq = sv2 ** 2
-Uy = U2.T @ y_tilde                          # U' y_tilde, shape (n-2,)
+Uy = U2.T @ y_tilde
 yty = y_tilde @ y_tilde
 
-def log_marg_post_gamma5(log_gamma):
-    """Log marginal posterior of gamma for Problem 5 (p1=2 free, n-2 penalized)."""
+p1_5 = 2   # number of free parameters
+
+def log_marg_post_gamma(log_gamma, sv_sq, Uy, yty, n, p1):
+    """Log marginal posterior of gamma (up to additive const)."""
     gamma = np.exp(log_gamma)
-    inv_gamma2 = 1.0 / gamma**2
-    # log det(X2t'X2t + I/gamma^2) = sum log(sv^2 + 1/gamma^2)
-    log_det = np.sum(np.log(sv2_sq + inv_gamma2))
-    # S*(gamma) = ||y_tilde||^2 - sum sv^2/(sv^2 + 1/gamma^2) * (U'y)^2
-    Sstar = yty - np.sum(sv2_sq / (sv2_sq + inv_gamma2) * Uy**2)
-    Sstar = max(Sstar, 1e-15)
-    lp = -(n_g - 1) * log_gamma - 0.5 * log_det - ((n_g - 2) / 2) * np.log(Sstar)
+    ig2 = 1.0 / gamma**2
+    log_det = np.sum(np.log(sv_sq + ig2))
+    Sstar = max(yty - np.sum(sv_sq / (sv_sq + ig2) * Uy**2), 1e-15)
+    n_pen_coefs = len(sv_sq)
+    lp = (-(n_pen_coefs + 1) * log_gamma
+          - 0.5 * log_det
+          - ((n - p1) / 2) * np.log(Sstar))
     return lp
 
 log_gamma_grid = np.linspace(-5, 8, 400)
-lp_g = np.array([log_marg_post_gamma5(lg) for lg in log_gamma_grid])
-lp_g -= lp_g.max()
-pg = np.exp(lp_g)
-pg /= pg.sum() * (log_gamma_grid[1] - log_gamma_grid[0])
-
-# Point estimates
 dlg = log_gamma_grid[1] - log_gamma_grid[0]
-mean_log_gamma = (log_gamma_grid * pg).sum() * dlg
-gamma_hat = np.exp(mean_log_gamma)
 
-# Residual sigma (for mode)
-best_lg_idx = np.argmax(lp_g)
-gamma_mode = np.exp(log_gamma_grid[best_lg_idx])
-inv_gm2 = 1 / gamma_mode**2
-Sstar_mode = yty - np.sum(sv2_sq / (sv2_sq + inv_gm2) * Uy**2)
-sigma_hat = np.sqrt(Sstar_mode / (n_g - 4))
-
-print(f"Posterior mean gamma_hat = {gamma_hat:.3f}")
-print(f"Sigma at posterior mode  = {sigma_hat:.3f}")
-print(f"CV lambda = {best_lam:.4g};  1/gamma_hat^2 = {1/gamma_hat**2:.4g}")
+lp_g5 = np.array([log_marg_post_gamma(lg, sv2_sq, Uy, yty, n_g, p1_5)
+                   for lg in log_gamma_grid])
+lp_g5 -= lp_g5.max()
+pg5 = np.exp(lp_g5)
+pg5 /= pg5.sum() * dlg
 ```
 
 ### (i) — Posterior Samples of $\gamma$ and $\sigma$
 
 ```{python}
-np.random.seed(238)
-N_g = 1000
-R_full_g = np.zeros((n_g, n_g)); R_full_g[2:, 2:] = np.eye(n_pen)
+N_mc = 1000
 
-# Sample log_gamma
-lg_idx = np.random.choice(len(log_gamma_grid), size=N_g,
-                           p=pg / pg.sum())
-lg_samp = log_gamma_grid[lg_idx]
-gamma_samp5 = np.exp(lg_samp)
+# Sample log(gamma) from discrete posterior
+lg_idx5 = np.random.choice(len(log_gamma_grid), size=N_mc,
+                            p=pg5 / pg5.sum())
+gamma_samp5 = np.exp(log_gamma_grid[lg_idx5])
 
-# For each sampled gamma, compute S* and sample sigma^2
-Sstar_samp5 = np.zeros(N_g)
+# For each gamma, compute S* and sample sigma^2 ~ S*/chi2(nu)
+Sstar_samp5 = np.zeros(N_mc)
 for j, gam in enumerate(gamma_samp5):
     ig2 = 1 / gam**2
     Sstar_samp5[j] = yty - np.sum(sv2_sq / (sv2_sq + ig2) * Uy**2)
 
-nu5 = n_g - 4   # n - p1 - 2 = n - 2 - 2
-sigma2_samp5 = Sstar_samp5 / np.random.chisquare(nu5, size=N_g)
+nu5 = n_g - p1_5 - 2   # degrees of freedom
+sigma2_samp5 = Sstar_samp5 / np.random.chisquare(nu5, size=N_mc)
 sigma_samp5 = np.sqrt(sigma2_samp5)
 
 gamma_hat5 = np.mean(gamma_samp5)
 sigma_hat5 = np.mean(sigma_samp5)
 print(f"Posterior mean gamma = {gamma_hat5:.3f}")
 print(f"Posterior mean sigma = {sigma_hat5:.3f}")
-print(f"CV lambda = {best_lam:.4g};  1/gamma_hat^2 = {1/gamma_hat5**2:.4g}")
+print(f"CV lambda = {best_lam:.4g};  "
+      f"1/gamma_hat^2 = {1/gamma_hat5**2:.4g}")
 ```
 
-The posterior mean of $1/\hat\gamma^2$ is close to the CV-selected $\lambda$, illustrating the Bayesian interpretation of ridge regression: the regularization strength $\lambda$ is matched by the precision of the Gaussian prior $1/\gamma^2$.
+The empirical finding that $1/\hat{\gamma}^2$ closely mirrors the
+cross-validated $\lambda$ beautifully illustrates the Bayesian
+interpretation of ridge regression. In this framework, the frequentist
+penalty parameter $\lambda$ serves the exact same regularizing role as
+the prior precision $1/\gamma^2$ on the spline coefficients. While
+cross-validation selects a single $\lambda$ to minimize out-of-sample
+prediction error, the Bayesian approach naturally infers this shrinkage
+parameter from the data by evaluating the full marginal posterior,
+resulting in highly comparable estimates of the optimal regularization
+strength.
 
 ### (ii) — Posterior Samples of $\{\mu_t\}$
 
 ```{python}
-# Sample beta | gamma, sigma^2, y ~ N(beta_hat(gamma), sigma^2 (X'X + R/gamma^2)^{-1})
-# Use Cholesky of A then triangular solve: if A = L L', then A^{-1} = L'^{-1} L^{-1},
-# so beta - beta_hat = sigma * L'^{-1} z, i.e. solve L' u = z then beta = beta_hat + sigma*u.
-XtX_g = X_g.T @ X_g    # precompute once: (n_g, n_g)
+R_full_g = np.zeros((n_g, n_g))
+R_full_g[2:, 2:] = np.eye(n_pen)
+XtX_g = X_g.T @ X_g
 Xty_g = X_g.T @ y_g
-mu_samp5 = np.zeros((N_g, n_g))
+
+mu_samp5 = np.zeros((N_mc, n_g))
 for j, (gam, sig2) in enumerate(zip(gamma_samp5, sigma2_samp5)):
     A = XtX_g + R_full_g / gam**2
     L_A = np.linalg.cholesky(A)
-    beta_hat_j = solve_triangular(L_A, solve_triangular(L_A, Xty_g, lower=True), lower=False)
+
+    beta_hat_j = cho_solve((L_A, True), Xty_g)
+    
     z = np.random.randn(n_g)
-    u = solve_triangular(L_A.T, z, lower=False)   # L'^{-1} z
+    # L_A.T is upper triangular, so lower=False is correct here
+    u = solve_triangular(L_A.T, z, lower=False) 
+    
     beta_j = beta_hat_j + np.sqrt(sig2) * u
     mu_samp5[j] = X_g @ beta_j
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-for j in range(0, N_g, 10):   # plot every 10th for clarity
-    plt.plot(t_g, mu_samp5[j], lw=0.5, alpha=0.25, color="steelblue")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title("Problem 5(b)(ii): Posterior samples of trend μ_t")
-plt.legend(["Data", "Posterior samples"]); plt.tight_layout(); plt.show()
+# --- Plotting ---
+fig, ax = plt.subplots()
+
+ax.plot(t_g, y_g, lw=1.5, alpha=0.3, color="gray", label="Data")
+
+for j in range(0, N_mc, 10):
+    lbl = "Posterior samples" if j == 0 else None
+    ax.plot(t_g, mu_samp5[j], lw=0.4, alpha=0.15,
+            color="steelblue", label=lbl, zorder=2)
+
+ax.set_xlabel("Month index (1 = Jan 2004)")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Posterior Samples of Trend $\mu_t$ (100 of 1000 shown)")
+
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(frameon=False)
+
+plt.tight_layout()
+plt.show()
 ```
 
-The uncertainty bands are widest at the extremes of the time series and tightest near the middle, which makes intuitive sense. The posterior samples reveal that the overall level and direction of the trend are well-identified, but the exact shape in the tails is uncertain.
+The uncertainty revealed in the plot makes mathematical sense given the
+extreme flexibility of the model, even if it does not produce a
+traditional "smooth" trend. Because the model uses $n-1$ knots and lacks
+an explicit seasonal component, the Bayesian posterior naturally
+utilizes the spline's flexibility to explain the high-frequency seasonal
+variations. Consequently, the sampled curves tightly hug the raw data,
+oscillating to match almost every peak and trough. The uncertainty bands
+are exceptionally narrow throughout the time series, indicating that the
+posterior is highly confident in this highly flexible, almost
+interpolating fit rather than extracting a heavily penalized, smooth
+macro-trend.
 
 ### (iii) — Bayesian Point Estimate vs. Ridge
 
 ```{python}
 mu_bayes5 = mu_samp5.mean(axis=0)
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-plt.plot(t_g, mu_ridge,  lw=2.5, color="darkorange",  label=f"Ridge (λ={best_lam:.2g})")
-plt.plot(t_g, mu_bayes5, lw=2.5, color="steelblue", linestyle="--", label="Bayesian mean")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title("Problem 5(b)(iii): Ridge vs. Bayesian posterior mean")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1.5, alpha=0.3, color="gray", label="Data")
+ax.plot(t_g, mu_ridge, lw=2.5, color="darkorange",
+        label=f"Ridge ($\\lambda={best_lam:.2g}$)")
+ax.plot(t_g, mu_bayes5, lw=2.5, color="steelblue", ls="--",
+        label="Bayesian posterior mean")
+ax.set_xlabel("Month index (1 = Jan 2004)")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Ridge vs. Bayesian posterior mean")
 
-print(f"Std dev of ridge estimate:   {mu_ridge.std():.3f}")
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(frameon=False)
+
+plt.tight_layout()
+plt.show()
+
+print(f"Std dev of ridge estimate:    {mu_ridge.std():.3f}")
 print(f"Std dev of Bayesian estimate: {mu_bayes5.std():.3f}")
 ```
 
-The Bayesian posterior mean of $\mu_t$ is somewhat smoother than the CV ridge estimate. This is because the Bayesian approach averages over uncertainty in $\gamma$, effectively using a mixture of regularization strengths and pulling the estimate toward smoother functions. Both estimates convey the same broad trends in golf interest over time, but the Bayesian mean exhibits less high-frequency variation. I would prefer the Bayesian estimate for its principled treatment of uncertainty in the smoothing parameter.
+Contrary to what one might initially expect, the Bayesian posterior mean
+is actually vastly *less* smooth than the CV Ridge estimate. The Ridge
+estimate ($\lambda = 3.5 \times 10^5$) aggressively penalizes the spline
+coefficients to minimize out-of-sample prediction error, completely
+smoothing over the high-frequency seasonal variations to extract a
+broad, multi-year macro-trend.
+
+In contrast, the Bayesian model naturally integrates over the
+hyperparameter $\gamma$. Because this specific model formulation lacks
+an explicit seasonal component, the data overwhelmingly supports a
+highly flexible posterior (a larger $\gamma$) to absorb the massive
+amount of variance driven by the seasonality. Consequently, the Bayesian
+posterior mean tightly tracks the peaks and troughs of the raw data.
+
+Both methods are doing exactly what they are mathematically designed to
+do. I prefer the Bayesian estimate for its principled treatment of the
+data; it faithfully reveals the underlying cyclic structure that the
+model is trying to explain, effectively highlighting that a dedicated
+seasonal component is required for a truly parsimonious fit.
 
 \newpage
 
@@ -712,20 +925,15 @@ The Bayesian posterior mean of $\mu_t$ is somewhat smoother than the CV ridge es
 
 ## (a) — Ridge Regression with Seasonal Terms
 
-We extend the design matrix to include $\cos(2\pi t/12)$ and $\sin(2\pi t/12)$, so
-$$
-\hat\mu_t + \hat\beta_n\cos\!\left(\tfrac{2\pi t}{12}\right) + \hat\beta_{n+1}\sin\!\left(\tfrac{2\pi t}{12}\right).
-$$
-These two columns are **not** penalized; only $\beta_2,\ldots,\beta_{n-1}$ are penalized.
+We extend the design matrix with $\cos(2\pi t/12)$ and
+$\sin(2\pi t/12)$. These two columns are **not** penalized; only
+$\beta_2,\ldots,\beta_{n-1}$ are penalized.
 
 ```{python}
-# Augmented design matrix: [X_spline | cos | sin]
 cos_col = np.cos(2 * np.pi * t_g / 12)
 sin_col = np.sin(2 * np.pi * t_g / 12)
-X_g6 = np.column_stack([X_g, cos_col, sin_col])   # shape (n, n+2)
-n_col6 = X_g6.shape[1]  # n + 2
-# Penalized indices: 2..n-1 (same spline knots, cos/sin NOT penalized)
-n_pen6 = n_pen   # still n-2
+X_g6 = np.column_stack([X_g, cos_col, sin_col])
+n_col6 = X_g6.shape[1]   # n + 2
 
 lambdas6 = np.logspace(-3, 6, 60)
 cv_mse6 = np.zeros(len(lambdas6))
@@ -733,60 +941,83 @@ cv_mse6 = np.zeros(len(lambdas6))
 for k_idx, lam in enumerate(lambdas6):
     mse_folds = []
     for train_idx, val_idx in kf.split(y_g):
-        Xtr = X_g6[train_idx]; ytr = y_g[train_idx]
-        Xval = X_g6[val_idx];  yval = y_g[val_idx]
+        Xtr, ytr = X_g6[train_idx], y_g[train_idx]
+        Xval, yval = X_g6[val_idx], y_g[val_idx]
         R6 = np.zeros((n_col6, n_col6))
-        R6[2:n_g, 2:n_g] = np.eye(n_pen6)
+        R6[2:n_g, 2:n_g] = np.eye(n_pen)
         A = Xtr.T @ Xtr + lam * R6
         beta_r = np.linalg.solve(A, Xtr.T @ ytr)
-        mse_folds.append(np.mean((yval - Xval @ beta_r)**2))
+        mse_folds.append(np.mean((yval - Xval @ beta_r) ** 2))
     cv_mse6[k_idx] = np.mean(mse_folds)
 
 best_lam6 = lambdas6[np.argmin(cv_mse6)]
 print(f"Best lambda (CV, with seasonal) = {best_lam6:.4g}")
 
 R6_full = np.zeros((n_col6, n_col6))
-R6_full[2:n_g, 2:n_g] = np.eye(n_pen6)
+R6_full[2:n_g, 2:n_g] = np.eye(n_pen)
 A6_full = X_g6.T @ X_g6 + best_lam6 * R6_full
 beta_ridge6 = np.linalg.solve(A6_full, X_g6.T @ y_g)
 
-# Trend only (no seasonal)
 mu_trend6_ridge = X_g @ beta_ridge6[:n_g]
-# Trend + seasonal
 mu_full6_ridge = X_g6 @ beta_ridge6
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-plt.plot(t_g, mu_trend6_ridge, lw=2, color="darkorange", label="Trend only μ̂_t")
-plt.plot(t_g, mu_full6_ridge,  lw=2, color="steelblue",  linestyle="--",
-         label="Trend + seasonal")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title(f"Problem 6(a): Ridge with seasonal (λ={best_lam6:.2g})")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
+ax.plot(t_g, mu_trend6_ridge, lw=2, color="darkorange",
+        label=r"Trend only $\hat{\mu}_t$")
+ax.plot(t_g, mu_full6_ridge, lw=2, color="steelblue", ls="--",
+        label="Trend + seasonal")
+ax.set_xlabel("Month")
+ax.set_ylabel("Google Trends score")
+ax.set_title(f"Ridge with seasonal ($\\lambda={best_lam6:.2g}$)")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 
 beta_n_ridge = beta_ridge6[n_g]
 beta_n1_ridge = beta_ridge6[n_g + 1]
 ampl = np.sqrt(beta_n_ridge**2 + beta_n1_ridge**2)
-print(f"Ridge: beta_n = {beta_n_ridge:.3f}, beta_(n+1) = {beta_n1_ridge:.3f}, amplitude = {ampl:.3f}")
+print(f"Ridge: beta_n = {beta_n_ridge:.3f}, "
+      f"beta_(n+1) = {beta_n1_ridge:.3f}, amplitude = {ampl:.3f}")
 ```
 
-The trend-only fit $\hat\mu_t$ captures the long-run evolution of golf interest. Adding the sinusoidal components visibly improves the fit, with the seasonal curve closely tracking the annual peak in summer months. The regularization prevents the spline from interpolating month-to-month noise while still capturing multi-year trends.
+The cross-validation strategy selected an optimal regularization
+parameter of $\lambda \approx 1.215 \times 10^5$.
+
+The extracted trend functions successfully capture the structural
+patterns in the data without over-fitting or fully interpolating the
+idiosyncratic noise. By explicitly separating the variance into
+long-term and cyclic components, the model behaves elegantly:
+
+1.  **The Trend Only (**$\hat{\mu}_t$): The heavy penalty forces the
+    spline coefficients to remain extremely smooth. Stripped of the
+    seasonal variance, the trend line clearly illustrates the underlying
+    macro-evolution of golf search interest—a gradual, multi-year
+    decline followed by a recent, steady resurgence.
+2.  **The Trend + Seasonal Model:** Adding the sinusoidal components
+    perfectly captures the predictable, high-amplitude annual summer
+    peaks and winter troughs (with an estimated seasonal amplitude of
+    $\approx 20.2$ points).
+
+Crucially, because the sinusoidal terms explicitly absorb the massive
+seasonal variance, the CV algorithm is free to choose a high $\lambda$
+that aggressively penalizes the spline. As a result, the combined fit
+closely tracks the true signal without interpolating the high-frequency,
+random month-to-month deviations (such as isolated, irregular spikes in
+the data).
 
 ## (b) — Bayesian Inference with Seasonal Terms
 
-Now $\beta_0, \beta_1, \beta_n, \beta_{n+1}$ are flat (p1 = 4) and $\beta_2,\ldots,\beta_{n-1}$ have Gaussian prior (p2 = n-2). The marginal posterior of $\gamma$ becomes
-$$
-p(\gamma \mid y) \propto \gamma^{-(n-1)} \left|\tilde{X}_2'\tilde{X}_2 + \tfrac{1}{\gamma^2}I\right|^{-1/2} S^*(\gamma)^{-(n-4)/2} \cdot I\!\{\log\gamma \in [\text{low},\text{high}]\},
-$$
-and $\sigma^2 \mid \gamma, y \sim \text{Inv-}\chi^2(n-6,\; S^*(\gamma)/(n-6))$.
+Now $\beta_0, \beta_1, \beta_n, \beta_{n+1}$ are flat ($p_1 = 4$) and
+$\beta_2,\ldots,\beta_{n-1}$ have Gaussian prior ($n-2$ penalized
+coefficients).
 
 ```{python}
-# Free columns: 0,1,n,n+1 (intercept, linear, cos, sin)
 free_idx = [0, 1, n_g, n_g + 1]
-pen_idx  = list(range(2, n_g))
+pen_idx = list(range(2, n_g))
 
-X1_g6 = X_g6[:, free_idx]   # (n, 4) free predictors
-X2_g6 = X_g6[:, pen_idx]    # (n, n-2) penalized predictors
+X1_g6 = X_g6[:, free_idx]
+X2_g6 = X_g6[:, pen_idx]
 
 Q1_6, _ = np.linalg.qr(X1_g6)
 y_tilde6 = y_g - Q1_6 @ (Q1_6.T @ y_g)
@@ -797,18 +1028,10 @@ sv2_sq6 = sv2_6**2
 Uy6 = U2_6.T @ y_tilde6
 yty6 = y_tilde6 @ y_tilde6
 
-p1_6 = 4   # free parameters
+p1_6 = 4
 
-def log_marg_post_gamma6(log_gamma):
-    gamma = np.exp(log_gamma)
-    inv_gamma2 = 1.0 / gamma**2
-    log_det = np.sum(np.log(sv2_sq6 + inv_gamma2))
-    Sstar = yty6 - np.sum(sv2_sq6 / (sv2_sq6 + inv_gamma2) * Uy6**2)
-    Sstar = max(Sstar, 1e-15)
-    lp = -(n_g - 1) * log_gamma - 0.5 * log_det - ((n_g - p1_6) / 2) * np.log(Sstar)
-    return lp
-
-lp_g6 = np.array([log_marg_post_gamma6(lg) for lg in log_gamma_grid])
+lp_g6 = np.array([log_marg_post_gamma(lg, sv2_sq6, Uy6, yty6, n_g, p1_6)
+                   for lg in log_gamma_grid])
 lp_g6 -= lp_g6.max()
 pg6 = np.exp(lp_g6)
 pg6 /= pg6.sum() * dlg
@@ -817,28 +1040,42 @@ pg6 /= pg6.sum() * dlg
 ### (i) — Posterior Samples of $\gamma$ and $\sigma$
 
 ```{python}
-np.random.seed(238)
-lg_idx6 = np.random.choice(len(log_gamma_grid), size=N_g, p=pg6 / pg6.sum())
+lg_idx6 = np.random.choice(len(log_gamma_grid), size=N_mc,
+                            p=pg6 / pg6.sum())
 gamma_samp6 = np.exp(log_gamma_grid[lg_idx6])
 
-Sstar_samp6 = np.zeros(N_g)
+Sstar_samp6 = np.zeros(N_mc)
 for j, gam in enumerate(gamma_samp6):
     ig2 = 1 / gam**2
     Sstar_samp6[j] = yty6 - np.sum(sv2_sq6 / (sv2_sq6 + ig2) * Uy6**2)
 
-nu6 = n_g - p1_6 - 2   # n - 6
-sigma2_samp6 = Sstar_samp6 / np.random.chisquare(nu6, size=N_g)
+nu6 = n_g - p1_6   # n - 4
+sigma2_samp6 = Sstar_samp6 / np.random.chisquare(nu6, size=N_mc)
 sigma_samp6 = np.sqrt(sigma2_samp6)
 
 gamma_hat6 = np.mean(gamma_samp6)
 sigma_hat6 = np.mean(sigma_samp6)
-print(f"Problem 6(b)(i):")
-print(f"  Posterior mean gamma = {gamma_hat6:.3f}")
-print(f"  Posterior mean sigma = {sigma_hat6:.3f}")
-print(f"  CV lambda = {best_lam6:.4g};  1/gamma_hat^2 = {1/gamma_hat6**2:.4g}")
+print(f"Posterior mean gamma = {gamma_hat6:.3f}")
+print(f"Posterior mean sigma = {sigma_hat6:.3f}")
+print(f"CV lambda = {best_lam6:.4g};  "
+      f"1/gamma_hat^2 = {1/gamma_hat6**2:.4g}")
 ```
 
-As in Problem 5, the Bayesian $1/\hat\gamma^2$ is comparable to the CV-chosen $\lambda$, confirming the correspondence between the two approaches.
+The cross-validated regularization parameter
+($\lambda_{CV} \approx 1.215 \times 10^5$) is approximately ten times
+larger than the Bayesian equivalent
+($1/\hat{\gamma}^2 \approx 1.234 \times 10^4$).
+
+While both methods agree that substantial regularization is necessary to
+smooth the spline coefficients (both operating in the $10^4$ to $10^5$
+magnitude range), their exact targets diverge due to their differing
+optimization objectives. Cross-validation selects a more aggressive
+penalty (higher $\lambda$) because it strictly minimizes out-of-sample
+prediction error, heavily prioritizing a smoother macro-trend to guard
+against overfitting. In contrast, the Bayesian posterior integrates over
+the parameters to maximize the marginal likelihood of the observed data,
+resulting in a slightly smaller effective penalty that retains more
+flexibility to explain in-sample residual variations.
 
 ### (ii) — Posterior Samples of $\{\mu_t\}$ (Trend Only)
 
@@ -846,74 +1083,146 @@ As in Problem 5, the Bayesian $1/\hat\gamma^2$ is comparable to the CV-chosen $\
 R6_bay = np.zeros((n_col6, n_col6))
 for j_idx in pen_idx:
     R6_bay[j_idx, j_idx] = 1.0
-XtX_g6 = X_g6.T @ X_g6   # precompute once
+XtX_g6 = X_g6.T @ X_g6
 Xty_g6 = X_g6.T @ y_g
 
-mu_trend_samp6 = np.zeros((N_g, n_g))
-beta_samp6 = np.zeros((N_g, n_col6))
+mu_trend_samp6 = np.zeros((N_mc, n_g))
+beta_samp6 = np.zeros((N_mc, n_col6))
 
 for j, (gam, sig2) in enumerate(zip(gamma_samp6, sigma2_samp6)):
     A = XtX_g6 + R6_bay / gam**2
     L_A = np.linalg.cholesky(A)
-    beta_hat_j = solve_triangular(L_A, solve_triangular(L_A, Xty_g6, lower=True), lower=False)
+    
+    beta_hat_j = cho_solve((L_A, True), Xty_g6)
+    
     z = np.random.randn(n_col6)
     u = solve_triangular(L_A.T, z, lower=False)
     beta_j = beta_hat_j + np.sqrt(sig2) * u
     beta_samp6[j] = beta_j
-    mu_trend_samp6[j] = X_g @ beta_j[:n_g]   # trend only
+    
+    # Extract just the trend basis (first n_g columns)
+    mu_trend_samp6[j] = X_g @ beta_j[:n_g]
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-for j in range(0, N_g, 10):
-    plt.plot(t_g, mu_trend_samp6[j], lw=0.5, alpha=0.25, color="steelblue")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title("Problem 6(b)(ii): Posterior samples of trend μ_t (no seasonal)")
-plt.legend(["Data", "Posterior samples"]); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1.5, alpha=0.3, color="gray", label="Data")
+for j in range(0, N_mc, 10):
+    lbl = "Posterior samples" if j == 0 else None
+    ax.plot(t_g, mu_trend_samp6[j], lw=0.4, alpha=0.15,
+            color="steelblue", label=lbl)
+ax.set_xlabel("Month index (1 = Jan 2004)")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Posterior samples of trend $\\mu_t$ (seasonality removed)")
+
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(frameon=False, loc="upper right")
+plt.tight_layout()
+plt.show()
 ```
 
-The posterior spread of the trend-only curves is reasonable: the long-run level is well-identified in the middle of the series, with greater uncertainty at the endpoints. The seasonality has been cleanly separated into the $\cos/\sin$ components.
+The uncertainty depicted in the updated plot aligns perfectly with the
+underlying statistical mechanics of the model. By explicitly allocating
+the large, predictable cyclic variations to the sinusoidal terms, the
+model's residual variance ($\sigma^2$) is substantially reduced.
+Consequently, the heavily penalized spline can confidently isolate the
+smooth macro-trend without aggressively interpolating the high-frequency
+seasonal noise.
+
+The posterior samples form a dense, tightly constrained band throughout
+the majority of the time series, reflecting high confidence in the
+estimated long-run level—which clearly reveals a multi-year decline in
+golf interest followed by a steady, recent resurgence. Furthermore, as
+is mathematically characteristic of linear regression and penalized
+splines, the posterior uncertainty subtly widens at the endpoints of the
+time series. This boundary flaring is the natural result of the outer
+knots lacking bilateral data to anchor them, correctly reflecting an
+increase in predictive variance where observational information becomes
+strictly one-sided.
 
 ### (iii) — Bayesian Mean vs. Ridge
 
 ```{python}
 mu_bayes6_trend = mu_trend_samp6.mean(axis=0)
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-plt.plot(t_g, mu_trend6_ridge, lw=2, color="darkorange",  label="Ridge trend")
-plt.plot(t_g, mu_bayes6_trend, lw=2, color="steelblue", linestyle="--",
-         label="Bayesian posterior mean trend")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title("Problem 6(b)(iii): Ridge vs. Bayesian trend")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
+ax.plot(t_g, mu_trend6_ridge, lw=2, color="darkorange",
+        label="Ridge trend")
+ax.plot(t_g, mu_bayes6_trend, lw=2, color="steelblue", ls="--",
+        label="Bayesian posterior mean trend")
+ax.set_xlabel("Month")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Ridge vs. Bayesian trend (Problem 6)")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 ```
 
-The Bayesian posterior mean trend is smoother than the ridge trend, for the same reason as in Problem 5: averaging over the uncertainty in $\gamma$ provides additional regularization. Both estimates identify the same major features — declining interest from 2004 to roughly 2020, then a post-pandemic uptick — but the Bayesian estimate presents them with less residual roughness. I prefer the Bayesian estimate.
+When comparing the two point estimates, the **Ridge regression trend is
+noticeably smoother** than the Bayesian posterior mean trend.
+
+This visual difference aligns precisely with the penalty parameters
+calculated previously. The cross-validation process for Ridge selected a
+highly aggressive penalty ($\lambda_{CV} \approx 1.215 \times 10^5$) to
+strictly minimize out-of-sample prediction error, resulting in a stiff,
+highly regularized macro-trend. In contrast, the Bayesian effective
+penalty ($1/\hat{\gamma}^2 \approx 1.234 \times 10^4$) is roughly a
+factor of ten smaller. While averaging over the uncertainty in $\gamma$
+provides robust regularization, the Bayesian model prioritizes
+maximizing the marginal likelihood, allowing the trend to retain
+slightly more flexibility to capture local variations in the data.
+
+Both models successfully identify the same macro-behavior: a long-term
+decline in golf interest from 2004 to roughly 2020, followed by a
+post-pandemic resurgence. However, **I prefer the Bayesian estimate**.
+The cross-validated Ridge trend is arguably over-smoothed, whereas the
+Bayesian trend achieves a better balance—it filters out the
+high-frequency seasonal noise while remaining responsive to genuine,
+localized shifts in the underlying trend.
 
 ### (iv) — Full Fit with Seasonal Component
 
 ```{python}
-beta_n_bayes  = beta_samp6[:, n_g].mean()
+beta_n_bayes = beta_samp6[:, n_g].mean()
 beta_n1_bayes = beta_samp6[:, n_g + 1].mean()
 
 mu_full_bayes6 = (mu_bayes6_trend
-                  + beta_n_bayes  * cos_col
+                  + beta_n_bayes * cos_col
                   + beta_n1_bayes * sin_col)
 
 ampl6 = np.sqrt(beta_n_bayes**2 + beta_n1_bayes**2)
-print(f"Bayesian: beta_n = {beta_n_bayes:.3f}, beta_(n+1) = {beta_n1_bayes:.3f}, "
+print(f"Bayesian: beta_n = {beta_n_bayes:.3f}, "
+      f"beta_(n+1) = {beta_n1_bayes:.3f}, "
       f"amplitude = {ampl6:.3f}")
 
-plt.figure(figsize=(11, 5))
-plt.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
-plt.plot(t_g, mu_full_bayes6, lw=2.5, color="steelblue",
-         label="Bayesian: trend + seasonal")
-plt.xlabel("Month"); plt.ylabel("Google Trends score")
-plt.title("Problem 6(b)(iv): Bayesian full fit (trend + seasonal)")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.plot(t_g, y_g, lw=1, alpha=0.5, color="gray", label="Data")
+ax.plot(t_g, mu_full_bayes6, lw=2.5, color="steelblue",
+        label="Bayesian: trend + seasonal")
+ax.set_xlabel("Month")
+ax.set_ylabel("Google Trends score")
+ax.set_title("Bayesian full fit (trend + seasonal)")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 ```
 
-The Bayesian full fit captures the data well: the trend component tracks long-run changes in golf search popularity, and the seasonal sinusoid with amplitude $\approx \hat\beta_n^2 + \hat\beta_{n+1}^2$ reflects the well-known summer peak in golf interest. Together they explain most of the systematic variation in the data without overfitting.
+The Bayesian posterior mean estimates for the seasonal components are
+$\hat{\beta}_n \approx -20.175$ (cosine term) and
+$\hat{\beta}_{n+1} \approx -1.319$ (sine term).
+
+As shown in the plot, the full Bayesian fit ($\hat{\mu}_t$ + seasonal
+terms) captures the underlying data-generating process exceptionally
+well. The baseline trend cleanly tracks the long-run macroeconomic
+shifts in golf search popularity without being distracted by localized
+noise. Meanwhile, the seasonal sinusoid (which has an amplitude of
+roughly 20.2) perfectly captures the cyclic, intra-year variance.
+Because the cosine coefficient is strongly negative, the model
+mathematically confirms the well-known seasonality of the sport: search
+interest reaches its nadir in the dead of winter (e.g., months 12, 24,
+36) and peaks during the summer. Together, these components explain the
+vast majority of the systematic variation in the series without
+overfitting.
 
 \newpage
 
@@ -921,155 +1230,246 @@ The Bayesian full fit captures the data well: the trend component tracks long-ru
 
 ## (a) — Prior Distribution as a Gaussian Process
 
-The model is $f(x_i) = \beta_0 + \tau B(x_i)$ where $B$ is standard Brownian motion and $\tau = \gamma\sigma$. Since $\beta_0 \sim \text{Unif}(-C,C)$ (flat as $C \to \infty$) and $B(x) \sim GP(0,\min(x,x'))$, the prior on $f$ is a Gaussian process:
-$$
-f \sim GP\!\left(0,\; \tau^2 \min(x, x')\right)
-$$
-(omitting the improper flat contribution from $\beta_0$, or equivalently $f$ is a GP with a constant mean function and covariance $K(x,x') = \tau^2\min(x,x')$, where the constant mean is determined from the data).
+The model is $f(x) = \beta_0 + \tau B(x)$ where $B$ is standard Brownian
+motion and $\tau = \gamma\sigma$. Standard Brownian motion is itself a
+Gaussian process with mean zero and covariance
+$\text{Cov}(B(x), B(x')) = \min(x, x')$.
+
+Because the intercept has a flat prior,
+$\beta_0 \sim \text{Unif}(-C, C)$ as $C \to \infty$, the mathematically
+rigorous way to state the prior of $f$ is as a Gaussian Process
+*conditional* on $\beta_0$: $$
+f(\cdot) \mid \beta_0, \tau \sim GP\!\bigl(\beta_0,\; \tau^2 \min(x, x')\bigr)
+$$ This uses the **Wiener process kernel** scaled by $\tau^2$. The prior
+encodes that $f$ is continuous and has independent increments: for
+$x < x'$, the increment $f(x') - f(x)$ is independent of $f(x)$ and has
+variance $\tau^2(x' - x)$.
 
 ## (b) — Posterior of $f$ Given Data, $\sigma$, and $\tau$
 
-Conditioned on $\sigma$ and $\tau = \gamma\sigma$, the observations are $y_i = f(x_i) + \epsilon_i$ with $\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0,\sigma^2)$. By standard GP conditioning:
+Conditioning on $\sigma$ and $\tau$, the observations are
+$y_i = f(x_i) + \epsilon_i$ with
+$\epsilon_i \overset{\text{i.i.d.}}{\sim} N(0,\sigma^2)$. By standard GP
+conditioning, the posterior of $f$ is also a Gaussian process.
+Specifically, let:
+
+-   $K$ be the $n \times n$ prior covariance matrix with entries
+    $K_{ij} = \tau^2\min(x_i,x_j)$,
+-   $k(x^*) \in \mathbb{R}^n$ be the vector with entries
+    $k_i(x^*) = \tau^2\min(x_i, x^*)$,
+-   $k(x^*,x^{**}) = \tau^2\min(x^*,x^{**})$ be the prior covariance
+    between two test points.
+
+Then the posterior distribution of $f(x^*)$ given $y$, $\sigma$, $\tau$
+is:
 $$
-f(x^*) \mid y, \sigma, \tau \sim GP(\mu_*(x^*),\; K_*(x^*,x^{**})),
+f(x^*) \mid y, \sigma, \tau \sim N\!\bigl(\mu_*(x^*),\; \Sigma_*(x^*)\bigr)
 $$
-where, with $K_{ij} = \tau^2\min(x_i,x_j)$ (plus flat intercept handled by projection),
-$$
-\mu_*(x^*) = K(x^*, X)\bigl[K(X,X) + \sigma^2 I\bigr]^{-1}y, \quad
-K_*(x^*,x^{**}) = K(x^*,x^{**}) - K(x^*,X)\bigl[K(X,X)+\sigma^2 I\bigr]^{-1}K(X,x^{**}).
-$$
-Equivalently, writing $f(x_i) = \beta_0 + \sum_{k} \alpha_k \cdot \mathbf{1}[x_i \ge x_{(k)}]$ with $\alpha_k \overset{\text{indep.}}{\sim} N(0, \tau^2 \delta_k)$ (BM increment representation), the posterior on $\alpha$ is Gaussian with precision matrix $(L'L/\sigma^2 + \Delta^{-1}/\tau^2)$ where $\Delta = \text{diag}(\delta_k)$.
+with
+
+\begin{align*}
+\mu_*(x^*) &= k(x^*)'(K + \sigma^2 I)^{-1} y, \\
+\Sigma_*(x^*,x^{**}) &= k(x^*,x^{**}) - k(x^*)'(K + \sigma^2 I)^{-1} k(x^{**}).
+\end{align*}
+
+Equivalently, using the Brownian motion increment representation, let
+$0 < x_{(1)} < \cdots < x_{(m)}$ be the sorted unique positive
+$x$-values with spacings $\delta_k = x_{(k)} - x_{(k-1)}$
+($x_{(0)} = 0$). Define the step-function basis
+$L_{ik} = \mathbf{1}[x_i \ge x_{(k)}]$ so that
+$f(x_i) = \beta_0 + \sum_k \alpha_k L_{ik}$ where
+$\alpha_k \sim N(0, \tau^2 \delta_k)$. Then the posterior on
+$(\beta_0, \alpha)$ is multivariate normal with precision matrix
+$(X'X/\sigma^2 + R/\tau^2)$ where
+$R = \text{diag}(0, 1/\delta_1, \ldots, 1/\delta_m)$ and
+$X = [1 \mid L]$.
 
 ## (c) — Posterior of $\sigma$ Given Data and $\gamma$
 
-With $\tau = \gamma\sigma$, the BM increment representation maps exactly to the Bayesian spline of Problems 5–6 with $p_1 = 1$ (flat intercept) and weighted penalty $\alpha_k \sim N(0,\gamma^2\sigma^2\delta_k)$. After integrating out $\beta_0$ and all $\alpha_k$, the conditional posterior of $\sigma$ is:
-$$
-\sigma^2 \mid \gamma, y \sim \text{Inv-}\chi^2\!\left(n - 3,\; \frac{S^*(\gamma)}{n - 3}\right),
-$$
-where $S^*(\gamma) = \tilde{y}'[I - \tilde{L}(\tilde{L}'\tilde{L} + \Delta^{-1}/\gamma^2)^{-1}\tilde{L}']\tilde{y}$, $\tilde{y} = M_1 y$, $\tilde{L} = M_1 L$, and $M_1$ projects out the intercept.
+Writing $\tau = \gamma\sigma$, the prior on the increments becomes
+$\alpha_k \sim N(0, \gamma^2\sigma^2\delta_k)$. We can integrate out
+$\beta_0$ and $\alpha_1, \ldots, \alpha_m$ analytically using standard
+Bayesian normal linear model conjugacy.
+
+We then integrate over $\sigma$ under the prior
+$p(\log\sigma) \propto 1$ (which implies $p(\sigma) \propto 1/\sigma$).
+The conditional posterior of $\sigma^2$ given $\gamma$ and $y$ follows a
+Scaled Inverse Chi-Square distribution: $$
+\sigma^2 \mid \gamma, y \sim \text{Inv-}\chi^2\!\left(\nu,\; \frac{S^*(\gamma)}{\nu}\right)
+$$ Here, the degrees of freedom are $\nu = n - 1$ (since only the single
+intercept, $p_1 = 1$, is completely free), and the scale term is: $$
+S^*(\gamma) = \tilde{y}'\!\bigl[I - \tilde{L}(\tilde{L}'\tilde{L} + \Delta^{-1}/\gamma^2)^{-1}\tilde{L}'\bigr]\tilde{y}
+$$ where $\tilde{y} = M_1 y$, $\tilde{L} = M_1 L$ ($M_1$ is the matrix
+that projects out the intercept), and $\Delta = \text{diag}(\delta_k)$.
 
 ## (d) — Marginal Posterior of $\gamma$
 
-Integrating $\sigma$ out of the joint posterior $p(\gamma,\sigma\mid y)$:
+Integrating $\sigma$ out from the joint posterior
+$p(\gamma, \sigma \mid y)$ yields the marginal posterior for $\gamma$:
 $$
-p(\gamma \mid y) \propto \gamma^{-(m+1)} \left|\tilde{L}'\tilde{L}\,\Delta + I/\gamma^2\right|^{-1/2} S^*(\gamma)^{-(n-1)/2} \cdot I\!\left\{\log\gamma \in [\text{low},\text{high}]\right\},
-$$
-where $m$ is the number of unique positive $x$-values (BM knots), $\Delta = \text{diag}(\delta_k)$, and the $\gamma^{-(m+1)}$ factor combines the prior normalization of $\alpha_1,\ldots,\alpha_m$ (contributing $\gamma^{-m}$) and the Jacobian $p(\gamma) \propto 1/\gamma$ from $\log\gamma \sim \text{Unif}$.
+p(\gamma \mid y) \propto \gamma^{-(m+1)} \left|\tilde{L}'\tilde{L} + \frac{1}{\gamma^2}\Delta^{-1}\right|^{-1/2} S^*(\gamma)^{-(n-1)/2} \cdot I\!\left\{\log\gamma \in [\text{low}, \text{high}]\right\}
+$$ The $\gamma^{-(m+1)}$ factor combines two pieces: the prior
+normalization of the $m$ increments $\alpha_1, \ldots, \alpha_m$ (each
+contributing $1/(\gamma\sigma)$ integrated against
+$p(\sigma) \propto 1/\sigma$, yielding $\gamma^{-m}$), and the Jacobian
+$p(\gamma) \propto 1/\gamma$ resulting from the uniform prior on
+$\log\gamma$.
+
+In practice, after scaling the columns of $\tilde{L}$ by
+$\sqrt{\delta_k}$, the computation reduces to a standard SVD-based
+evaluation identical in form to a standard penalized spline model.
 
 ## (e) — Implementation on Subsample ($n=500$)
 
+**Important:** The problem specifies random seed 42 for the subsample.
+
 ```{python}
-np.random.seed(42)
-idx500 = np.random.choice(len(wages), size=500, replace=False)
+# Use seed 42 as required by the problem statement
+rng_sub = np.random.RandomState(42)
+idx500 = rng_sub.choice(len(wages), size=500, replace=False)
 wages500 = wages.iloc[idx500]
 x500 = wages500["Exper"].values.astype(float)
 y500 = np.log(wages500["WeeklyEarnings"].values.astype(float))
 n500 = len(x500)
+print(f"Subsample: n = {n500}")
 
-# Build BM design matrix using unique positive experience values as knots.
-# B(0) = 0 deterministically, so x=0 needs no increment column; exclude it.
+# Brownian motion design matrix
 x_knots = np.sort(np.unique(x500))
-x_knots = x_knots[x_knots > 0]          # only positive knots: increments from 0
+x_knots = x_knots[x_knots > 0]       # B(0) = 0: no increment at 0
 m_knots = len(x_knots)
-# delta_k = x_knots[k] - x_knots[k-1], with x_knots[-1] = 0 (B(0)=0 reference)
-delta_knots = np.diff(np.concatenate([[0], x_knots]))   # all positive
+delta_knots = np.diff(np.concatenate([[0], x_knots]))
 
 # L[i, k] = 1 if x500[i] >= x_knots[k]
-L500 = (x500[:, None] >= x_knots[None, :]).astype(float)   # (500, m_knots)
-# Design matrix: X = [1 | L]
-X_bm500 = np.column_stack([np.ones(n500), L500])   # (500, 1+m_knots)
-n_bm = X_bm500.shape[1]
+L500 = (x500[:, None] >= x_knots[None, :]).astype(float)
+X_bm500 = np.column_stack([np.ones(n500), L500])
 
-# Penalty matrix: R_bm[0,0] = 0 (intercept flat), R_bm[k,k] = 1/delta_k
-R_diag = np.concatenate([[0], 1.0 / delta_knots])   # (1 + m_knots,)
+# Penalty diagonal: 0 for intercept, 1/delta_k for each increment
+R_diag = np.concatenate([[0], 1.0 / delta_knots])
 
-# Project out intercept
+# Project out the intercept
 Q1_bm, _ = np.linalg.qr(X_bm500[:, :1])
 y_t500 = y500 - Q1_bm @ (Q1_bm.T @ y500)
-X2_bm500 = L500 - Q1_bm @ (Q1_bm.T @ L500)      # projected L, shape (500, m_knots)
+X2_bm500 = L500 - Q1_bm @ (Q1_bm.T @ L500)
 
-# Weighted SVD: scale columns of X2_bm by sqrt(delta_k) then SVD
-# Prior: alpha_k ~ N(0, gamma^2 sigma^2 delta_k) equiv to alpha_k = delta_k^{1/2} z_k, z_k ~ N(0,gamma^2 sigma^2)
-# So: X2_bm @ alpha = (X2_bm * sqrt(delta)) @ z  => define X2_sc = X2_bm * sqrt(delta)
+# Scale columns by sqrt(delta_k) to make penalty = I/gamma^2
 sqrt_delta = np.sqrt(delta_knots)
-X2_sc500 = X2_bm500 * sqrt_delta[None, :]   # scaled: equiv penalty = I/gamma^2
+X2_sc500 = X2_bm500 * sqrt_delta[None, :]
 
 U_bm, sv_bm, Vt_bm = lsvd(X2_sc500, full_matrices=False)
 sv_bm_sq = sv_bm**2
 Uy_bm = U_bm.T @ y_t500
 yty_bm = y_t500 @ y_t500
 
-p1_bm = 1   # only intercept is flat
-
-def log_marg_post_bm(log_gamma, sv_sq, Uy, yty, n, p1):
-    gamma = np.exp(log_gamma)
-    ig2 = 1.0 / gamma**2
-    log_det = np.sum(np.log(sv_sq + ig2))
-    Sstar = yty - np.sum(sv_sq / (sv_sq + ig2) * Uy**2)
-    Sstar = max(Sstar, 1e-15)
-    lp = -(len(sv_sq) + 1) * log_gamma - 0.5 * log_det - ((n - p1) / 2) * np.log(Sstar)
-    return lp
+p1_bm = 1   # only intercept is free
 
 log_gamma_bm = np.linspace(-5, 8, 400)
-lp_bm500 = np.array([log_marg_post_bm(lg, sv_bm_sq, Uy_bm, yty_bm, n500, p1_bm)
+dlg_bm = log_gamma_bm[1] - log_gamma_bm[0]
+
+lp_bm500 = np.array([log_marg_post_gamma(lg, sv_bm_sq, Uy_bm,
+                                           yty_bm, n500, p1_bm)
                       for lg in log_gamma_bm])
 lp_bm500 -= lp_bm500.max()
 pg_bm500 = np.exp(lp_bm500)
-dlg_bm = log_gamma_bm[1] - log_gamma_bm[0]
 pg_bm500 /= pg_bm500.sum() * dlg_bm
 ```
 
 ```{python}
-# Sample N=1000 posterior draws
-np.random.seed(42)
 N_bm = 1000
-lg_idx_bm = np.random.choice(len(log_gamma_bm), size=N_bm, p=pg_bm500/pg_bm500.sum())
+
+# Sample gamma
+lg_idx_bm = np.random.choice(len(log_gamma_bm), size=N_bm,
+                               p=pg_bm500 / pg_bm500.sum())
 gamma_samp_bm = np.exp(log_gamma_bm[lg_idx_bm])
 
+# Sample sigma^2 | gamma
 Sstar_bm_samp = np.zeros(N_bm)
 for j, gam in enumerate(gamma_samp_bm):
     ig2 = 1 / gam**2
-    Sstar_bm_samp[j] = yty_bm - np.sum(sv_bm_sq / (sv_bm_sq + ig2) * Uy_bm**2)
+    Sstar_bm_samp[j] = (yty_bm
+        - np.sum(sv_bm_sq / (sv_bm_sq + ig2) * Uy_bm**2))
 
 nu_bm = n500 - p1_bm - 2
 sigma2_bm_samp = Sstar_bm_samp / np.random.chisquare(nu_bm, size=N_bm)
 
-# Full design X = [1 | L] with diagonal penalty diag(0, 1/delta_1, ...)
-R_bm_diag_mat = np.diag(R_diag)
-
+# Posterior mean of f on evaluation grid
+R_bm_mat = np.diag(R_diag)
 x_eval = np.arange(0, 64)
 L_eval = (x_eval[:, None] >= x_knots[None, :]).astype(float)
 X_eval = np.column_stack([np.ones(len(x_eval)), L_eval])
 
-f_post_mean_pts = np.zeros((N_bm, len(x_eval)))
+XtX_500 = X_bm500.T @ X_bm500
+Xty_500 = X_bm500.T @ y500
 
-XtX_500 = X_bm500.T @ X_bm500    # precompute: (1+m_knots, 1+m_knots)
-Xty_500 = X_bm500.T @ y500        # precompute
+f_post_pts = np.zeros((N_bm, len(x_eval)))
 for j, gam in enumerate(gamma_samp_bm):
-    A = XtX_500 + R_bm_diag_mat / gam**2
+    A = XtX_500 + R_bm_mat / gam**2
     beta_hat_j = np.linalg.solve(A, Xty_500)
-    f_post_mean_pts[j] = X_eval @ beta_hat_j
+    f_post_pts[j] = X_eval @ beta_hat_j
 
-f_post_mean_500 = f_post_mean_pts.mean(axis=0)
+f_post_mean_500 = f_post_pts.mean(axis=0)
 
-# Compare with OLS quadratic (as a simple reference curve)
-X_ols = np.column_stack([np.ones(n500), x500, x500**2])
-beta_ols_w = np.linalg.lstsq(X_ols, y500, rcond=None)[0]
-f_ols = beta_ols_w[0] + beta_ols_w[1]*x_eval + beta_ols_w[2]*x_eval**2
+# Reference: ridge spline from Lecture 20 approach
+# (ridge with BM basis and CV lambda)
+lambdas_bm = np.logspace(-3, 6, 50)
+kf_bm = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_bm = np.zeros(len(lambdas_bm))
+for ki, lam in enumerate(lambdas_bm):
+    mse_f = []
+    for tr, va in kf_bm.split(y500):
+        A = X_bm500[tr].T @ X_bm500[tr] + lam * R_bm_mat
+        b_r = np.linalg.solve(A, X_bm500[tr].T @ y500[tr])
+        mse_f.append(np.mean((y500[va] - X_bm500[va] @ b_r)**2))
+    cv_bm[ki] = np.mean(mse_f)
+best_lam_bm = lambdas_bm[np.argmin(cv_bm)]
+A_bm_best = XtX_500 + best_lam_bm * R_bm_mat
+beta_ridge_bm = np.linalg.solve(A_bm_best, Xty_500)
+f_ridge_500 = X_eval @ beta_ridge_bm
 
-plt.figure(figsize=(10, 5))
-plt.scatter(x500, y500, s=5, alpha=0.2, color="gray", label="Data (n=500)")
-plt.plot(x_eval, f_post_mean_500, lw=2.5, color="steelblue", label="GP/BM posterior mean")
-plt.plot(x_eval, f_ols, lw=2, color="darkorange", linestyle="--", label="OLS quadratic (reference)")
-plt.xlabel("Years of experience"); plt.ylabel("Log weekly earnings")
-plt.title("Problem 7(e): GP/BM posterior mean (n=500)")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.scatter(x500, y500, s=5, alpha=0.15, color="gray",
+           label="Data ($n=500$)", zorder=1)
+ax.plot(x_eval, f_post_mean_500, lw=2.5, color="steelblue",
+        label="GP/BM posterior mean", zorder=3)
+ax.plot(x_eval, f_ridge_500, lw=2.5, color="darkred", ls="--",
+        label=f"Ridge (Lecture 20 style, $\\lambda={best_lam_bm:.1f}$)",
+        zorder=3)
+ax.set_xlabel("Years of experience")
+ax.set_ylabel("Log weekly earnings")
+ax.set_title("GP/BM posterior mean vs. ridge ($n=500$)")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 
 print(f"Posterior mean gamma = {np.mean(gamma_samp_bm):.3f}")
 print(f"Posterior mean sigma = {np.sqrt(sigma2_bm_samp.mean()):.3f}")
+print(f"Ridge lambda (CV)   = {best_lam_bm:.4g}")
 ```
 
-The GP/BM posterior mean follows the data closely, capturing the nonlinear concave shape of the experience-earnings relationship (fast early gains, diminishing returns at high experience). Compared to the OLS quadratic fit, the GP mean adapts more flexibly to the data without imposing a parametric form.
+### Posterior Inference and Results
+
+The posterior inference was implemented on the random subsample of size
+$n = 500$. For each value of $\gamma$, we computed the conditional
+posterior of $f$ given $(\sigma, \gamma)$ using the Gaussian process
+representation of the Brownian motion prior. We then integrated over the
+posterior distribution of $\gamma$ and $\sigma$ to obtain the posterior
+mean estimate of $f(x)$ on a grid of values in $[0, 63]$.
+
+The posterior means of the hyperparameters were:
+$$\hat{\gamma} = 0.180, \quad \hat{\sigma} = 0.546$$
+
+The resulting posterior mean curve is shown in the figure along with the
+data. The estimate captures the nonlinear concave relationship between
+experience and log weekly earnings: earnings rise quickly for small
+experience levels and then increase more slowly as experience grows.
+
+For comparison, we also plotted the ridge regression estimate from the
+method of Lecture 20, with the tuning parameter chosen by
+cross-validation ($\lambda = 25.6$). The two curves are very similar,
+which is expected because the Brownian motion prior induces a smoothing
+penalty equivalent to ridge regularization on the increments of $f$. The
+Bayesian GP/BM posterior mean is slightly smoother, particularly in the
+tails, reflecting the additional averaging over the posterior
+uncertainty in the hyperparameter $\gamma$.
 
 ## (f) — Full Dataset
 
@@ -1080,14 +1480,15 @@ n_full = len(x_full)
 print(f"Full dataset: n = {n_full}")
 
 x_knots_f = np.sort(np.unique(x_full))
-x_knots_f = x_knots_f[x_knots_f > 0]   # exclude x=0; B(0)=0 needs no increment
-m_knots_f  = len(x_knots_f)
+x_knots_f = x_knots_f[x_knots_f > 0]
+m_knots_f = len(x_knots_f)
 delta_f = np.diff(np.concatenate([[0], x_knots_f]))
 
 L_full = (x_full[:, None] >= x_knots_f[None, :]).astype(float)
 X_bm_full = np.column_stack([np.ones(n_full), L_full])
 R_diag_f = np.concatenate([[0], 1.0 / delta_f])
 
+# Project out intercept
 Q1_f, _ = np.linalg.qr(X_bm_full[:, :1])
 y_t_full = y_full - Q1_f @ (Q1_f.T @ y_full)
 X2_f = L_full - Q1_f @ (Q1_f.T @ L_full)
@@ -1099,19 +1500,22 @@ sv_f_sq = sv_f**2
 Uy_f = U_f.T @ y_t_full
 yty_f = y_t_full @ y_t_full
 
-lp_bm_f = np.array([log_marg_post_bm(lg, sv_f_sq, Uy_f, yty_f, n_full, 1)
+lp_bm_f = np.array([log_marg_post_gamma(lg, sv_f_sq, Uy_f,
+                                          yty_f, n_full, 1)
                      for lg in log_gamma_bm])
 lp_bm_f -= lp_bm_f.max()
-pg_bm_f = np.exp(lp_bm_f); pg_bm_f /= pg_bm_f.sum() * dlg_bm
+pg_bm_f = np.exp(lp_bm_f)
+pg_bm_f /= pg_bm_f.sum() * dlg_bm
 
-np.random.seed(42)
-lg_idx_f = np.random.choice(len(log_gamma_bm), size=N_bm, p=pg_bm_f/pg_bm_f.sum())
+lg_idx_f = np.random.choice(len(log_gamma_bm), size=N_bm,
+                              p=pg_bm_f / pg_bm_f.sum())
 gamma_samp_f = np.exp(log_gamma_bm[lg_idx_f])
 
 Sstar_f_samp = np.zeros(N_bm)
 for j, gam in enumerate(gamma_samp_f):
-    ig2 = 1/gam**2
-    Sstar_f_samp[j] = yty_f - np.sum(sv_f_sq/(sv_f_sq+ig2)*Uy_f**2)
+    ig2 = 1 / gam**2
+    Sstar_f_samp[j] = (yty_f
+        - np.sum(sv_f_sq / (sv_f_sq + ig2) * Uy_f**2))
 
 nu_f = n_full - 1 - 2
 sigma2_f_samp = Sstar_f_samp / np.random.chisquare(nu_f, size=N_bm)
@@ -1119,10 +1523,11 @@ sigma2_f_samp = Sstar_f_samp / np.random.chisquare(nu_f, size=N_bm)
 R_bm_f_mat = np.diag(R_diag_f)
 L_eval_f = (x_eval[:, None] >= x_knots_f[None, :]).astype(float)
 X_eval_f = np.column_stack([np.ones(len(x_eval)), L_eval_f])
-f_post_f = np.zeros((N_bm, len(x_eval)))
 
-XtX_f = X_bm_full.T @ X_bm_full    # precompute: (64, 64)
-Xty_f = X_bm_full.T @ y_full        # precompute: (64,)
+XtX_f = X_bm_full.T @ X_bm_full
+Xty_f = X_bm_full.T @ y_full
+
+f_post_f = np.zeros((N_bm, len(x_eval)))
 for j, gam in enumerate(gamma_samp_f):
     A = XtX_f + R_bm_f_mat / gam**2
     beta_hat_j = np.linalg.solve(A, Xty_f)
@@ -1130,27 +1535,103 @@ for j, gam in enumerate(gamma_samp_f):
 
 f_mean_full = f_post_f.mean(axis=0)
 
-plt.figure(figsize=(10, 5))
-plt.scatter(x_full, y_full, s=2, alpha=0.1, color="gray", label=f"Data (n={n_full})")
-plt.plot(x_eval, f_post_mean_500, lw=2, color="steelblue",
-         linestyle="--", label="Posterior mean (n=500)")
-plt.plot(x_eval, f_mean_full,    lw=2.5, color="darkred",
-         label=f"Posterior mean (n={n_full})")
-plt.xlabel("Years of experience"); plt.ylabel("Log weekly earnings")
-plt.title("Problem 7(f): GP/BM posterior mean — full dataset")
-plt.legend(); plt.tight_layout(); plt.show()
+fig, ax = plt.subplots()
+ax.scatter(x_full, y_full, s=3, alpha=0.1, color="gray",
+           label=f"Data ($n={n_full}$)", zorder=1)
+ax.plot(x_eval, f_post_mean_500, lw=2, color="steelblue", ls="--",
+        label="Posterior mean ($n=500$)", zorder=3)
+ax.plot(x_eval, f_mean_full, lw=2.5, color="darkred",
+        label=f"Posterior mean ($n={n_full}$)", zorder=3)
+ax.set_xlabel("Years of experience")
+ax.set_ylabel("Log weekly earnings")
+ax.set_title("GP/BM posterior mean — full dataset vs. subsample")
+ax.legend(frameon=False)
+plt.tight_layout()
+plt.show()
 
-print(f"Full dataset: posterior mean gamma = {np.mean(gamma_samp_f):.3f}, "
+print(f"Full dataset: posterior mean gamma = "
+      f"{np.mean(gamma_samp_f):.3f}, "
       f"sigma = {np.sqrt(sigma2_f_samp.mean()):.3f}")
 ```
 
-With the full dataset, the GP/BM posterior mean becomes smoother and more tightly concentrated around the data's underlying trend. The $n=500$ and full-data estimates agree closely on the overall shape — a concave relationship peaking around 20–30 years of experience — but the full-data estimate has reduced variance, reflecting the additional information. The posterior mean $\gamma$ is similar in both cases, indicating a stable estimate of the smoothness scale with either sample size.
+### Comparison of Subsample ($n=500$) vs. Full Dataset ($n=25,437$)
+
+The scaling of the posterior inference from a small subsample to the
+full dataset provides a striking demonstration of how Bayesian Gaussian
+Process models refine their internal logic as information density
+increases.
+
+### Summary of Model Hyperparameters
+
+| Model / Dataset | $n$ | Smoothness ($\hat{\gamma}$) | Noise Std. Dev. ($\hat{\sigma}$) | Ridge Equiv. ($1/\hat{\gamma}^2$) |
+|:--------------|:--------------|:--------------|:--------------|:--------------|
+| **Ridge (Lecture 20)** | 500 | — | — | 25.6 (CV) |
+| **Bayesian GP/BM** | 500 | 0.180 | 0.546 | 30.9 |
+| **Bayesian GP/BM** | 25,437 | 0.099 | 0.580 | 102.0 |
+
+### Detailed Analysis
+
+#### 1. Convergence of the Smoothness Scale ($\gamma$)
+
+The most informative shift occurs in the posterior mean of the
+smoothness parameter, which drops from $\hat{\gamma} = 0.180$ in the
+subsample to $\hat{\gamma} = 0.099$ with the full dataset. A smaller
+$\gamma$ implies a tighter prior on the Brownian motion increments: the
+equivalent ridge penalty $1/\hat{\gamma}^2$ increases from approximately
+31 to 102. With over 25,000 observations, the posterior attributes less
+of the observed variation to the trend and more to noise, producing a
+more regularized estimate. Meanwhile, $\hat{\sigma}$ remains stable at
+approximately 0.55–0.58, indicating that the individual-level noise
+scale is well-identified and largely independent of the sample size.
+
+#### 2. Resolution of the Lifecycle Trend
+
+Both models successfully capture the fundamental **concave
+relationship** between experience and log weekly earnings:
+
+\* **Early Career**: There is a steep, rapid increase in earnings during
+the first 10 years of experience.
+
+\* **Peak Earnings**: Both models identify a plateau or peak in earnings
+occurring between 20 and 30 years of experience.
+
+\* **Late Career**: The full-data estimate (solid red line) reveals a
+definitive late-career decline after 45 years of experience. This
+feature is less certain in the $n=500$ subsample (dashed blue line),
+which lacks the density of data points in the "tails" to anchor the
+Brownian motion accurately.
+
+However, the full-data estimate (solid red line) is noticeably stiffer
+and less reactive to local clusters of data points than the $n = 500$
+estimate (dashed blue line). This is a direct consequence of the smaller
+$\hat{\gamma}$: the posterior concentrates on smoother functions as the
+data increasingly constrain the trend.
+
+#### 3. Correcting the Boundary Bias
+
+A critical difference emerges at the "tails" of the experience scale
+(45+ years). The subsample estimate stays relatively flat in this
+region, likely due to a lack of data points at the higher end of the
+distribution to anchor the Brownian motion. The full dataset, however,
+provides enough evidence to reveal a definitive late-career decline in
+log weekly earnings.
+
+#### 4. Conclusion
+
+The full-data posterior mean is preferred for its superior resolution
+and substantially reduced posterior variance, as expected from the
+$\sqrt{n}$ scaling of posterior concentration. The close agreement
+between the two Bayesian estimates on the overall shape confirms that
+the $n = 500$ random subsample was representative of the population, but
+the full dataset anchors the estimate more firmly at the boundaries and
+identifies the late-career decline that the subsample cannot resolve.
 
 \newpage
 
-# Bonus (Problem 8) — PyMC Implementations of Problems 1–3
+# Bonus (Problem 8) — PyMC Implementations of Problems 1–4
 
-The bonus question asks us to implement exercises from this homework using PyMC and document any issues encountered. We implement Problems 1, 2, and 3, each of which has a well-defined likelihood and flat (improper) priors that render the posterior proper given sufficient data.
+The bonus question asks us to implement exercises using PyMC and
+document any issues encountered. We implement Problems 1, 2, 3, and 4.
 
 ```{python}
 import pymc as pm
@@ -1160,12 +1641,13 @@ import pytensor.tensor as pt
 
 ## Problem 1 — Logistic Regression via PyMC
 
-We re-fit the spam logistic regression model from Problem 1 with PyMC, using the same flat prior $\beta_j \overset{\text{i.i.d.}}{\sim} \text{Uniform}(-\infty,\infty)$ and Bernoulli likelihood with the logit link. We initialize NUTS at the MLE to assist with finding the high-density region under the improper flat prior.
+We re-fit the spam logistic regression with PyMC, using `pm.Flat` for
+the flat prior and initializing NUTS at the MLE.
 
 ```{python}
 with pm.Model() as logistic_pymc:
     beta_pm = pm.Flat("beta", shape=p)
-    logit_p_pm = X @ beta_pm        # pytensor matrix-vector multiply
+    logit_p_pm = X @ beta_pm
     y_obs_pm = pm.Bernoulli("y_obs", logit_p=logit_p_pm, observed=y)
     trace_logistic = pm.sample(
         draws=2000, tune=1000, chains=2,
@@ -1178,63 +1660,87 @@ with pm.Model() as logistic_pymc:
 ```
 
 ```{python}
-summary_log = az.summary(trace_logistic, var_names=["beta"], hdi_prob=0.95, round_to=4)
-print(summary_log.to_string())
+summary_log = az.summary(
+  trace_logistic,
+  var_names=["beta"],
+  hdi_prob=0.95,
+  round_to=4)
+summary_log
 ```
 
 ```{python}
 beta_samp_log = trace_logistic.posterior["beta"].values.reshape(-1, p)
 pymc_mean_log = beta_samp_log.mean(axis=0)
-pymc_sd_log   = beta_samp_log.std(axis=0)
+pymc_sd_log = beta_samp_log.std(axis=0)
 
-print(f"\n{'':18} {'Laplace mean':>14} {'PyMC mean':>12} {'Laplace SD':>12} {'PyMC SD':>10}")
+print(f"\n{'':18} {'Laplace':>9} {'PyMC':>9} "
+      f"{'Lap SD':>9} {'PyMC SD':>9}")
 for i, lbl in enumerate(labels):
-    print(f"  {lbl:<18} {beta_mle[i]:14.4f} {pymc_mean_log[i]:12.4f} {post_se[i]:12.4f} {pymc_sd_log[i]:10.4f}")
+    print(f"  {lbl:<18} {beta_mle[i]:+9.4f} {pymc_mean_log[i]:+9.4f} "
+          f"{post_se[i]:9.4f} {pymc_sd_log[i]:9.4f}")
 ```
 
 ```{python}
-fig, axes = plt.subplots(2, 4, figsize=(14, 6))
+fig, axes = plt.subplots(2, 4)
 axes = axes.flatten()
-theta_plot = np.linspace(-1, 1, 400)
 
 for i, (lbl, ax) in enumerate(zip(labels, axes)):
     if i >= p:
-        ax.set_visible(False); continue
+        ax.set_visible(False)
+        continue
     samps = beta_samp_log[:, i]
-    ax.hist(samps, bins=40, density=True, alpha=0.55, color="steelblue", label="PyMC")
     mu_l, sd_l = beta_mle[i], post_se[i]
     x_range = np.linspace(samps.min(), samps.max(), 300)
-    ax.plot(x_range, 1/(sd_l*np.sqrt(2*np.pi))*np.exp(-0.5*((x_range-mu_l)/sd_l)**2),
-            lw=2, color="red", label="Laplace")
-    ax.set_title(lbl, fontsize=9); ax.legend(fontsize=7)
+    ax.hist(samps, bins=40, density=True, alpha=0.5,
+            color="steelblue", edgecolor="none", label="PyMC")
+    ax.plot(x_range,
+            norm.pdf(x_range, mu_l, sd_l),
+            lw=2, color="darkred", label="Laplace")
+    ax.set_title(lbl, fontsize=10)
+    ax.set_yticks([])
+    ax.spines['left'].set_visible(False)
+    if i == 0:
+        ax.legend(fontsize=8, frameon=False)
 
 axes[-1].set_visible(False)
-plt.suptitle("Problem 1: PyMC posterior vs Laplace approximation")
-plt.tight_layout(); plt.show()
+plt.suptitle("PyMC posterior vs. Laplace approximation (logistic)",
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
 ```
 
 ```{python}
 div_log = trace_logistic.sample_stats["diverging"].values.sum()
-rhat_log = az.summary(trace_logistic, var_names=["beta"])["r_hat"].max()
+rhat_log = az.summary(
+  trace_logistic,
+  var_names=["beta"]
+)["r_hat"].max()
 print(f"Divergences: {div_log}   Max R-hat: {rhat_log:.4f}")
 ```
 
-The PyMC posterior means and standard deviations match the Laplace approximation almost exactly across all seven coefficients. This is expected: with $n = 4{,}601$ observations, the posterior is tightly concentrated and nearly Gaussian at its mode. The max $\hat{R}$ is very close to 1.0, indicating good mixing across both chains. Any divergences reflect the sampler's difficulty with the improper flat tails, but they do not affect the bulk of the posterior mass.
+The PyMC posterior means and standard deviations match the Laplace
+approximation closely. With $n = 4{,}601$ observations, the posterior is
+nearly Gaussian. The max $\hat{R} \approx 1.0$ indicates good mixing.
 
-**PyMC ran successfully for Problem 1.** The only observable issue is that initialization with `pm.Flat` requires providing a starting point manually; without `initvals=beta_mle`, the default zero-initialization produces early divergences during warmup because the gradient is near-zero at $\beta = 0$ for the spam features.
+**PyMC ran successfully for Problem 1.** The only issue is that
+initialization with `pm.Flat` requires providing a starting point
+manually; without `initvals=beta_mle`, the sampler produces early
+divergences during warmup because the gradient is near-zero at
+$\beta = 0$.
 
 ## Problem 2 — Probit Regression via PyMC
 
-We re-fit the frogs probit model from Problem 2. The probit link $\Phi(\eta_i) = \frac{1}{2}\!\left[1 + \mathrm{erf}\!\left(\frac{\eta_i}{\sqrt{2}}\right)\right]$ is implemented directly in pytensor. We clip probabilities away from 0 and 1 to prevent numerical issues at extreme linear predictors.
+We implement the probit link via the error function:
+$\Phi(\eta) = \tfrac{1}{2}[1 + \text{erf}(\eta/\sqrt{2})]$, with
+clipping to prevent numerical issues.
 
 ```{python}
 with pm.Model() as probit_pymc:
     beta_pm2 = pm.Flat("beta", shape=X_f.shape[1])
     eta_pm2 = X_f @ beta_pm2
-    # Probit CDF via erf: Phi(eta) = 0.5*(1 + erf(eta/sqrt(2)))
     p_prob_pm = 0.5 * (1 + pt.erf(eta_pm2 / np.sqrt(2.0)))
-    p_clipped  = pt.clip(p_prob_pm, 1e-7, 1 - 1e-7)
-    y_obs_pm2  = pm.Bernoulli("y_obs", p=p_clipped, observed=y_f)
+    p_clipped = pt.clip(p_prob_pm, 1e-7, 1 - 1e-7)
+    y_obs_pm2 = pm.Bernoulli("y_obs", p=p_clipped, observed=y_f)
     trace_probit = pm.sample(
         draws=2000, tune=1000, chains=2,
         target_accept=0.9,
@@ -1246,67 +1752,143 @@ with pm.Model() as probit_pymc:
 ```
 
 ```{python}
-summary_prob = az.summary(trace_probit, var_names=["beta"], hdi_prob=0.95, round_to=4)
-print(summary_prob.to_string())
+summary_prob = az.summary(
+  trace_probit,
+  var_names=["beta"],
+  hdi_prob=0.95,
+  round_to=4)
+summary_prob
 ```
 
 ```{python}
-beta_samp_prob = trace_probit.posterior["beta"].values.reshape(-1, X_f.shape[1])
+beta_samp_prob = trace_probit.posterior["beta"].values.reshape(
+    -1, X_f.shape[1])
 pymc_mean_prob = beta_samp_prob.mean(axis=0)
-pymc_sd_prob   = beta_samp_prob.std(axis=0)
+pymc_sd_prob = beta_samp_prob.std(axis=0)
 
-print(f"\n{'':14} {'Laplace mean':>14} {'PyMC mean':>12} {'Laplace SD':>12} {'PyMC SD':>10}")
+print(f"\n{'':14} {'Laplace':>9} {'PyMC':>9} "
+      f"{'Lap SD':>9} {'PyMC SD':>9}")
 for i, lbl in enumerate(labels_f):
-    print(f"  {lbl:<14} {beta_probit[i]:14.4f} {pymc_mean_prob[i]:12.4f} "
-          f"{post_sd_probit[i]:12.4f} {pymc_sd_prob[i]:10.4f}")
+    print(f"  {lbl:<14} {beta_probit[i]:+9.4f} "
+          f"{pymc_mean_prob[i]:+9.4f} "
+          f"{post_sd_probit[i]:9.4f} {pymc_sd_prob[i]:9.4f}")
 ```
 
 ```{python}
-fig2, axes2 = plt.subplots(2, 4, figsize=(14, 6))
+fig2, axes2 = plt.subplots(2, 4)
 axes2 = axes2.flatten()
 
 for i, (lbl, ax) in enumerate(zip(labels_f, axes2)):
     if i >= len(labels_f):
-        ax.set_visible(False); continue
+        ax.set_visible(False)
+        continue
     samps = beta_samp_prob[:, i]
-    ax.hist(samps, bins=40, density=True, alpha=0.55, color="steelblue", label="PyMC")
     mu_l, sd_l = beta_probit[i], post_sd_probit[i]
     x_range = np.linspace(samps.min(), samps.max(), 300)
-    ax.plot(x_range, 1/(sd_l*np.sqrt(2*np.pi))*np.exp(-0.5*((x_range-mu_l)/sd_l)**2),
-            lw=2, color="red", label="Laplace")
-    ax.set_title(lbl, fontsize=9); ax.legend(fontsize=7)
+    ax.hist(samps, bins=40, density=True, alpha=0.5,
+            color="steelblue", edgecolor="none", label="PyMC")
+    ax.plot(x_range, norm.pdf(x_range, mu_l, sd_l),
+            lw=2, color="darkred", label="Laplace")
+    ax.set_title(lbl, fontsize=9)
+    ax.set_yticks([])
+    ax.spines['left'].set_visible(False)
+    if i == 0:
+        ax.legend(fontsize=7, frameon=False)
 
 axes2[-1].set_visible(False)
-plt.suptitle("Problem 2: PyMC posterior vs Laplace approximation (probit)")
-plt.tight_layout(); plt.show()
+plt.suptitle("PyMC posterior vs. Laplace approximation (probit)",
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
 ```
 
 ```{python}
 div_prob = trace_probit.sample_stats["diverging"].values.sum()
-rhat_prob = az.summary(trace_probit, var_names=["beta"])["r_hat"].max()
+rhat_prob = az.summary(
+  trace_probit,
+  var_names=["beta"]
+)["r_hat"].max()
 print(f"Divergences: {div_prob}   Max R-hat: {rhat_prob:.4f}")
 ```
 
-The PyMC probit posterior again matches the Laplace approximation closely. The frogs dataset is small enough that the posterior is slightly skewed for some coefficients (particularly `distance`, which has a long tail), and the MCMC histogram reveals asymmetries that the Gaussian Laplace approximation misses. This illustrates a case where PyMC adds genuine value beyond the Laplace approximation: the posterior uncertainty is more accurately represented by MCMC than by a Gaussian centered at the MLE.
+<!-- The PyMC probit posterior matches the Laplace approximation closely. The -->
 
-**PyMC ran successfully for Problem 2.** The `pt.clip` guard was necessary — without it, observations perfectly separated by a covariate cause $\Phi(\eta_i) \to 0$ or $1$, which produces $-\infty$ log-probability and NaN gradients, causing NUTS to fail immediately.
+<!-- frogs dataset is small enough that the MCMC histogram reveals slight -->
 
-## Problem 3 — Laplace Error Linear Regression via PyMC
+<!-- asymmetries that the Gaussian Laplace approximation misses — -->
 
-We re-fit the Pearson father-son height model from Problem 3, with Laplace-distributed errors and flat priors on $\beta_0$, $\beta_1$, and $\log\sigma$. We initialize at the posterior means from our grid approximation.
+<!-- illustrating where MCMC adds genuine value. -->
+
+<!-- **PyMC ran successfully for Problem 2.** The `pt.clip` guard was -->
+
+<!-- necessary — without it, observations perfectly separated by a covariate -->
+
+<!-- cause $\Phi(\eta_i) \to 0$ or $1$, producing NaN gradients and causing -->
+
+<!-- NUTS to fail immediately. -->
+
+**Reported issue for Problem 2: complete sampling failure.** The NUTS
+sampler fails catastrophically on the probit model with the frogs
+dataset. The diagnostics reveal the severity of the problem:
+
+-   **Effective sample sizes of 2–14** across all coefficients, meaning
+    the 4,000 nominal draws contain essentially no independent
+    information. The `mcse_mean` values are enormous (e.g., 70.8 for the
+    intercept, 2225 for `meanmin`), rendering the posterior means
+    statistically meaningless.
+
+-   **PyMC posterior means diverge wildly from the MLE.** For example,
+    the intercept shifts from +77.8 (Laplace) to +195.3 (PyMC), and
+    `meanmin` shifts from +2.74 to +3078.9. The PyMC standard deviations
+    are orders of magnitude larger than the Laplace posterior standard
+    deviations (e.g., 0.90 vs. 3257 for `meanmin`).
+
+-   **The histogram plots confirm non-convergence.** The MCMC samples
+    are multimodal, dispersed, and bear no resemblance to the
+    concentrated Laplace normal curves. The Laplace density appears as a
+    barely visible spike against the spread of the MCMC histogram.
+
+The root cause is **near-perfect separation** in the frogs dataset.
+Several covariates (e.g., `distance`, `NoOfPools`) nearly perfectly
+separate the presence/absence outcome. Under the flat prior
+$\beta_j \sim \text{Uniform}(-\infty, \infty)$, the posterior is proper
+but extremely diffuse in the directions corresponding to these
+separating covariates: the likelihood is nearly flat along ridges where
+$|x_i'\beta| \to \infty$ for the separated observations. NUTS explores
+these flat ridges without concentrating, producing chains that wander
+over enormous ranges.
+
+The `pt.clip` guard prevents outright NaN errors but does not fix the
+underlying geometry: once $\Phi(\eta_i)$ is clipped to $10^{-7}$ or
+$1 - 10^{-7}$, the gradient with respect to $\beta$ effectively vanishes
+for those observations, removing the information that would otherwise
+anchor the chain near the MLE.
+
+**Recommendation.** The fix is to replace the improper flat prior with a
+weakly informative proper prior such as
+$\beta_j \overset{\text{i.i.d.}}{\sim} N(0, 10^2)$, which regularizes
+the posterior in the separating directions without meaningfully
+affecting inference near the MLE. This is a well-documented issue in
+Bayesian GLMs with separation (see Gelman et al., 2008, "A weakly
+informative default prior distribution for logistic and other regression
+models").
+
+## Problem 3 — Laplace Error Regression via PyMC
+
+We re-fit the Pearson father-son height model with Laplace-distributed
+errors, initializing at the grid posterior means.
 
 ```{python}
-sigma_init = float(np.exp(
-    np.log(np.mean(np.abs(y_h - mean_b0 - mean_b1 * x_h)))
-))
+sigma_init = float(np.mean(np.abs(y_h - mean_b0 - mean_b1 * x_h)))
 
 with pm.Model() as laplace_reg_pymc:
-    beta0_pm3  = pm.Flat("beta0")
-    beta1_pm3  = pm.Flat("beta1")
+    beta0_pm3 = pm.Flat("beta0")
+    beta1_pm3 = pm.Flat("beta1")
     log_sig_pm = pm.Flat("log_sigma")
-    sigma_pm   = pm.Deterministic("sigma", pt.exp(log_sig_pm))
-    mu_pm      = beta0_pm3 + beta1_pm3 * x_h
-    y_obs_pm3  = pm.Laplace("y_obs", mu=mu_pm, b=sigma_pm, observed=y_h)
+    sigma_pm = pm.Deterministic("sigma", pt.exp(log_sig_pm))
+    mu_pm = beta0_pm3 + beta1_pm3 * x_h
+    y_obs_pm3 = pm.Laplace("y_obs", mu=mu_pm, b=sigma_pm,
+                            observed=y_h)
     trace_lap = pm.sample(
         draws=2000, tune=1000, chains=2,
         target_accept=0.95,
@@ -1319,9 +1901,12 @@ with pm.Model() as laplace_reg_pymc:
 ```
 
 ```{python}
-summary_lap = az.summary(trace_lap, var_names=["beta0","beta1","sigma"],
-                          hdi_prob=0.95, round_to=4)
-print(summary_lap.to_string())
+summary_lap = az.summary(
+  trace_lap,
+  var_names=["beta0", "beta1", "sigma"],
+  hdi_prob=0.95,
+  round_to=4)
+summary_lap
 ```
 
 ```{python}
@@ -1333,48 +1918,307 @@ pymc_b0_mean, pymc_b0_sd = b0_samp.mean(), b0_samp.std()
 pymc_b1_mean, pymc_b1_sd = b1_samp.mean(), b1_samp.std()
 
 print("Comparison: Grid approximation vs. PyMC MCMC")
-print(f"{'':8} {'Grid mean':>12} {'PyMC mean':>12} {'Grid SD':>10} {'PyMC SD':>10}")
-print(f"  beta0  {mean_b0:12.4f} {pymc_b0_mean:12.4f} {se_b0:10.4f} {pymc_b0_sd:10.4f}")
-print(f"  beta1  {mean_b1:12.4f} {pymc_b1_mean:12.4f} {se_b1:10.4f} {pymc_b1_sd:10.4f}")
+print(f"{'':8} {'Grid mean':>11} {'PyMC mean':>11} "
+      f"{'Grid SD':>9} {'PyMC SD':>9}")
+print(f"  beta0  {mean_b0:11.4f} {pymc_b0_mean:11.4f} "
+      f"{se_b0:9.4f} {pymc_b0_sd:9.4f}")
+print(f"  beta1  {mean_b1:11.4f} {pymc_b1_mean:11.4f} "
+      f"{se_b1:9.4f} {pymc_b1_sd:9.4f}")
 ```
 
 ```{python}
-fig3, axes3 = plt.subplots(1, 3, figsize=(13, 4))
+fig3, axes3 = plt.subplots(1, 3)
 
-# Beta0 marginal
-axes3[0].hist(b0_samp, bins=50, density=True, alpha=0.55,
-              color="steelblue", label="PyMC")
-b0_grid_marg = post.sum(axis=0) * db1   # reuse from Problem 3(b)
-axes3[0].plot(b0_grid, b0_grid_marg, lw=2, color="red", label="Grid")
-axes3[0].set_xlabel(r"$\beta_0$"); axes3[0].set_title(r"Marginal of $\beta_0$")
-axes3[0].legend()
+# beta0 marginal
+b0_grid_marg = post.sum(axis=0) * db1
+axes3[0].hist(b0_samp, bins=50, density=True, alpha=0.5,
+              color="steelblue", edgecolor="none", label="PyMC")
+axes3[0].plot(b0_grid, b0_grid_marg, lw=2, color="darkred",
+              label="Grid")
+axes3[0].set_xlabel(r"$\beta_0$")
+axes3[0].set_title(r"Marginal of $\beta_0$")
+axes3[0].legend(frameon=False)
 
-# Beta1 marginal
+# beta1 marginal
 b1_grid_marg = post.sum(axis=1) * db0
-axes3[1].hist(b1_samp, bins=50, density=True, alpha=0.55,
-              color="steelblue", label="PyMC")
-axes3[1].plot(b1_grid, b1_grid_marg, lw=2, color="red", label="Grid")
-axes3[1].set_xlabel(r"$\beta_1$"); axes3[1].set_title(r"Marginal of $\beta_1$")
-axes3[1].legend()
+axes3[1].hist(b1_samp, bins=50, density=True, alpha=0.5,
+              color="steelblue", edgecolor="none", label="PyMC")
+axes3[1].plot(b1_grid, b1_grid_marg, lw=2, color="darkred",
+              label="Grid")
+axes3[1].set_xlabel(r"$\beta_1$")
+axes3[1].set_title(r"Marginal of $\beta_1$")
+axes3[1].legend(frameon=False)
 
-# (beta0, beta1) joint scatter
-axes3[2].scatter(b0_samp[::5], b1_samp[::5], s=3, alpha=0.2,
+# Joint scatter
+axes3[2].scatter(b0_samp[::5], b1_samp[::5], s=3, alpha=0.15,
                  color="steelblue", label="PyMC")
-axes3[2].contour(B0, B1, post, levels=6, colors="red", linewidths=1)
-axes3[2].set_xlabel(r"$\beta_0$"); axes3[2].set_ylabel(r"$\beta_1$")
+axes3[2].contour(B0, B1, post, levels=6, colors="darkred",
+                 linewidths=1)
+axes3[2].set_xlabel(r"$\beta_0$")
+axes3[2].set_ylabel(r"$\beta_1$")
 axes3[2].set_title(r"Joint posterior of $(\beta_0,\beta_1)$")
-axes3[2].legend(["PyMC samples", "Grid contours"], fontsize=8)
+axes3[2].legend(["PyMC samples", "Grid contours"],
+                fontsize=8, frameon=False)
 
-plt.suptitle("Problem 3: PyMC vs grid approximation (Laplace errors)")
-plt.tight_layout(); plt.show()
+plt.suptitle("PyMC vs. grid approximation (Laplace errors)",
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.show()
 ```
 
 ```{python}
 div_lap = trace_lap.sample_stats["diverging"].values.sum()
-rhat_lap = az.summary(trace_lap, var_names=["beta0","beta1","sigma"])["r_hat"].max()
+rhat_lap = az.summary(
+  trace_lap,
+  var_names=["beta0", "beta1", "sigma"]
+)["r_hat"].max()
 print(f"Divergences: {div_lap}   Max R-hat: {rhat_lap:.4f}")
 ```
 
-The PyMC MCMC samples for $(\beta_0, \beta_1)$ overlap tightly with the grid posterior contours, confirming that both methods recover the same distribution. The posterior of $\sigma$ is also well-identified and concentrated around its posterior mean.
+<!-- The PyMC MCMC samples for $(\beta_0, \beta_1)$ overlap tightly with the -->
 
-**Reported issue for Problem 3.** Although the model converges ($\hat{R} \approx 1$), the MCMC sampler exhibits noticeably higher divergence counts than in Problems 1 or 2. This is attributable to the geometry of the Laplace-error posterior: the marginal $f_{\beta_0,\beta_1} \propto S(\beta_0,\beta_1)^{-n}$ has ridges that are nearly linear (the regression line), making the curvature anisotropic and difficult for NUTS to navigate. Increasing `target_accept` to 0.95 and providing good initial values substantially reduces but does not eliminate divergences. As a practical recommendation, reparameterizing in terms of the LAD (least absolute deviations) residuals or using more informative priors on $\sigma$ would improve sampler performance for Laplace-error models.
+<!-- grid posterior contours, confirming both methods recover the same -->
+
+<!-- distribution. -->
+
+<!-- **Reported issue for Problem 3.** Although the model converges -->
+
+<!-- ($\hat{R} \approx 1$), the MCMC sampler exhibits noticeably higher -->
+
+<!-- divergence counts than in Problems 1 or 2. This is attributable to the -->
+
+<!-- geometry of the Laplace-error posterior: the marginal -->
+
+<!-- $f_{\beta_0,\beta_1} \propto S(\beta_0,\beta_1)^{-n}$ has ridges along -->
+
+<!-- the regression line, making the curvature highly anisotropic and -->
+
+<!-- difficult for NUTS to navigate. Increasing `target_accept` to 0.95 and -->
+
+<!-- providing good initial values substantially reduces but does not -->
+
+<!-- eliminate divergences. Reparameterizing in terms of LAD residuals or -->
+
+<!-- using more informative priors on $\sigma$ would improve sampler -->
+
+<!-- performance. -->
+
+**PyMC ran successfully for Problem 3.** The PyMC MCMC samples for
+$(\beta_0, \beta_1)$ overlap tightly with the grid posterior contours,
+confirming both methods recover the same distribution. The ESS values
+(864–1464) indicate adequate mixing, and $\hat{R} \approx 1.0$. Although
+the Laplace-error likelihood creates anisotropic curvature (the
+posterior concentrates along a narrow ridge in the $(\beta_0, \beta_1)$
+plane, visible in the joint scatter plot), setting `target_accept=0.95`
+allows NUTS to navigate this geometry without excessive divergences.
+
+## Problem 4 — Changepoint Regression via PyMC
+
+The changepoint model
+$y_i = \beta_0 + \beta_1 x_i + \beta_2(x_i - c)_+ + \epsilon_i$ poses a
+potential challenge for NUTS: the hinge function $(x_i - c)_+$ is
+non-differentiable in $c$, creating a discontinuous gradient landscape
+that Hamiltonian Monte Carlo struggles to navigate.
+
+```{python}
+# Use posterior means from our grid solution as starting values
+c_start = float(mean_c)
+b_init = beta_samp[0]
+sig_init = float(sigma_samp[0])
+
+with pm.Model() as changepoint_pymc:
+    beta0_cp = pm.Flat("beta0")
+    beta1_cp = pm.Flat("beta1")
+    beta2_cp = pm.Flat("beta2")
+    c_cp = pm.Uniform("c", lower=2, upper=60)
+    log_sigma_cp = pm.Flat("log_sigma")
+    sigma_cp = pm.Deterministic("sigma", pt.exp(log_sigma_cp))
+
+    mu_cp = (beta0_cp + beta1_cp * x_w
+             + beta2_cp * pt.maximum(x_w - c_cp, 0))
+    y_obs_cp = pm.Normal("y_obs", mu=mu_cp, sigma=sigma_cp,
+                          observed=y_w)
+
+    trace_cp = pm.sample(
+        draws=2000, tune=2000, chains=2,
+        target_accept=0.95,
+        initvals={"beta0": b_init[0], "beta1": b_init[1],
+                  "beta2": b_init[2], "c": c_start,
+                  "log_sigma": np.log(sig_init)},
+        return_inferencedata=True,
+        progressbar=False,
+        random_seed=238
+    )
+```
+
+```{python}
+summary_cp = az.summary(
+  trace_cp,
+  var_names=["beta0", "beta1", "beta2", "c", "sigma"],
+  hdi_prob=0.95,
+  round_to=4)
+summary_cp
+```
+
+```{python}
+div_cp = trace_cp.sample_stats["diverging"].values.sum()
+rhat_cp = az.summary(
+    trace_cp,
+    var_names=["beta0", "beta1", "beta2", "c", "sigma"]
+)["r_hat"].max()
+print(f"Divergences: {div_cp}   Max R-hat: {rhat_cp:.4f}")
+```
+
+### Comparison with Grid Solution
+
+```{python}
+c_samp_pymc = trace_cp.posterior["c"].values.flatten()
+b0_cp_pymc = trace_cp.posterior["beta0"].values.flatten()
+b1_cp_pymc = trace_cp.posterior["beta1"].values.flatten()
+b2_cp_pymc = trace_cp.posterior["beta2"].values.flatten()
+sig_cp_pymc = trace_cp.posterior["sigma"].values.flatten()
+
+print("Comparison: Grid vs. PyMC")
+print(f"{'':10} {'Grid':>12} {'PyMC':>12}")
+print(f"  c mean   {mean_c:12.2f} {c_samp_pymc.mean():12.2f}")
+print(f"  c 2.5%   {ci_lo:12.2f} "
+      f"{np.percentile(c_samp_pymc, 2.5):12.2f}")
+print(f"  c 97.5%  {ci_hi:12.2f} "
+      f"{np.percentile(c_samp_pymc, 97.5):12.2f}")
+```
+
+```{python}
+fig_cp, axes_cp = plt.subplots(1, 3)
+
+# (1) Posterior of c: grid vs PyMC
+axes_cp[0].plot(c_grid, post_c, lw=2, color="darkred", label="Grid")
+axes_cp[0].hist(c_samp_pymc, bins=60, density=True, alpha=0.5,
+                color="steelblue", edgecolor="none", label="PyMC")
+axes_cp[0].set_xlabel("$c$")
+axes_cp[0].set_title("Posterior of changepoint $c$")
+axes_cp[0].legend(frameon=False)
+
+# (2) Trace plot of c (mixing diagnostic)
+n_per_chain = len(c_samp_pymc) // 2
+axes_cp[1].plot(c_samp_pymc[:n_per_chain], lw=0.3, alpha=0.6,
+                color="steelblue", label="Chain 1")
+axes_cp[1].plot(c_samp_pymc[n_per_chain:], lw=0.3, alpha=0.6,
+                color="darkorange", label="Chain 2")
+axes_cp[1].set_xlabel("Iteration")
+axes_cp[1].set_ylabel("$c$")
+axes_cp[1].set_title("Trace plot of $c$")
+axes_cp[1].legend(frameon=False, fontsize=9)
+
+# (3) Posterior sample curves on scatter plot
+axes_cp[2].scatter(x_w, y_w, s=4, alpha=0.15, color="gray", zorder=1)
+x_plot_cp = np.linspace(0, 63, 500)
+n_curves = min(100, len(c_samp_pymc))
+idx_thin = np.random.choice(len(c_samp_pymc), size=n_curves,
+                             replace=False)
+for j in idx_thin:
+    y_curve = (b0_cp_pymc[j] + b1_cp_pymc[j] * x_plot_cp
+               + b2_cp_pymc[j]
+               * np.maximum(x_plot_cp - c_samp_pymc[j], 0))
+    lbl = "PyMC samples" if j == idx_thin[0] else None
+    axes_cp[2].plot(x_plot_cp, y_curve, lw=0.3, alpha=0.12,
+                    color="steelblue", label=lbl, zorder=2)
+axes_cp[2].set_xlabel("Years of experience")
+axes_cp[2].set_ylabel("Log weekly earnings")
+axes_cp[2].set_title("PyMC posterior curves")
+axes_cp[2].legend(frameon=False, fontsize=9, loc="upper left")
+
+plt.tight_layout()
+plt.show()
+```
+
+<!-- ### Reported Issues for Problem 4 -->
+
+<!-- The changepoint model reveals a structural difficulty for PyMC's NUTS -->
+
+<!-- sampler. -->
+
+<!-- 1.  **High divergence count:** The sampler produces substantially more -->
+
+<!--     divergences than any other problem in this homework, even with -->
+
+<!--     `target_accept=0.95` and good initial values. This is caused by the -->
+
+<!--     non-differentiable hinge function $\max(x_i - c, 0)$: the gradient -->
+
+<!--     $\partial/\partial c$ is discontinuous at every data point where -->
+
+<!--     $x_i = c$, creating sharp ridges in the log-posterior landscape that -->
+
+<!--     Hamiltonian trajectories cannot traverse smoothly. -->
+
+<!-- 2.  **Poor mixing of** $c$: The trace plot of $c$ typically shows sticky -->
+
+<!--     behavior — the chain gets trapped near a value of $c$ and makes only -->
+
+<!--     occasional jumps, leading to high autocorrelation and effective -->
+
+<!--     sample sizes far below the nominal draw count. The $\hat{R}$ for $c$ -->
+
+<!--     is often elevated above 1.01. -->
+
+<!-- 3.  **Comparison with grid solution:** Despite these sampling -->
+
+<!--     difficulties, the PyMC posterior of $c$ broadly agrees with the -->
+
+<!--     analytical grid posterior from part (e), though the MCMC histogram -->
+
+<!--     may appear rougher or slightly shifted. The grid approach, which -->
+
+<!--     evaluates the closed-form marginal posterior on a dense grid and -->
+
+<!--     samples $\beta, \sigma$ conditionally, handles this problem much -->
+
+<!--     more gracefully because it never requires differentiating through -->
+
+<!--     the hinge. -->
+
+<!-- **Recommendation.** For changepoint models with non-smooth likelihoods, -->
+
+<!-- alternatives to standard HMC include: (i) the marginalization approach -->
+
+<!-- used in our main solution (analytically integrate out $\beta$ and -->
+
+<!-- $\sigma$, grid over $c$); (ii) Gibbs sampling with a discrete grid over -->
+
+<!-- $c$; or (iii) reparameterizing the hinge with a smooth approximation -->
+
+<!-- such as $\text{softplus}(x_i - c) = \log(1 + e^{x_i - c})$. -->
+
+### Results for Problem 4
+
+**PyMC ran successfully for Problem 4.** Despite the theoretical concern
+that the non-differentiable hinge function $\max(x_i - c, 0)$ would
+cause difficulties for gradient-based sampling, NUTS performs well on
+this model. The diagnostics are healthy: ESS values range from 977 to
+2036 across all parameters, and $\hat{R} \approx 1.0$, indicating good
+convergence and mixing.
+
+The PyMC posterior of $c$ matches the analytical grid posterior almost
+exactly: both yield a posterior mean of $\hat{c} = 17.30$ with a 95%
+credible interval of $[16.53,\; 18.04]$. The trace plot confirms that
+both chains explore the same region rapidly, with no evidence of the
+sticky behavior that might be expected from a non-smooth likelihood.
+
+The likely reason for this success is the large sample size
+($n = 25{,}437$). With tens of thousands of observations, the posterior
+of $c$ is extremely concentrated (SD $\approx 0.38$), confining the
+sampler to a narrow interval where the hinge function is effectively
+smooth — the non-differentiable points $x_i = c$ are encountered rarely
+enough that they do not disrupt the Hamiltonian trajectories. This
+suggests that the non-differentiability of the hinge is primarily a
+concern in small-sample settings where the posterior of $c$ is broad
+enough that the chain frequently crosses data points.
+
+**Contrast with Problem 2.** The changepoint model succeeds where the
+probit model fails, despitehdi_prob=0.95, round\_ the hinge
+non-differentiability, because the fundamental issue is not smoothness
+of the likelihood but rather the geometry of the posterior. The wages
+dataset with $n = 25{,}437$ produces a tightly concentrated,
+well-identified posterior, whereas the frogs dataset with near-perfect
+separation produces a posterior that is effectively unbounded in certain
+directions under the flat prior.
