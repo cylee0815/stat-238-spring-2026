@@ -1,0 +1,1113 @@
+---
+title: "STAT 238 — Homework Five"
+author: "Thomas Lee"
+date: "Spring 2026"
+format:
+  pdf:
+    toc: false
+    geometry:
+      - margin=1in
+    include-in-header:
+      text: |
+        \usepackage{amsmath,amssymb}
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: pymc_env
+---
+
+# Setup
+
+```{python}
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import norm, chi2, gamma as sp_gamma
+from scipy.linalg import solve, solve_triangular
+from scipy.linalg import svd as lsvd
+from scipy.special import gammaln
+from scipy.optimize import minimize
+import statsmodels.api as sm
+import pymc as pm
+import arviz as az
+import pytensor.tensor as pt
+import warnings
+warnings.filterwarnings('ignore')
+```
+
+```{python}
+# Shared utilities (from SKILL.md)
+def mh_sampler(log_post_fn, theta_init, proposal_sd, n_samples=20000, burn_in=5000):
+    theta = np.atleast_1d(np.array(theta_init, dtype=float))
+    dim = len(theta)
+    samples = np.zeros((n_samples, dim))
+    log_p_curr = log_post_fn(theta)
+    n_accept = 0
+    for i in range(n_samples):
+        proposal = theta + np.random.randn(dim) * proposal_sd
+        log_p_prop = log_post_fn(proposal)
+        if np.log(np.random.rand()) < log_p_prop - log_p_curr:
+            theta = proposal
+            log_p_curr = log_p_prop
+            n_accept += 1
+        samples[i] = theta
+    return samples[burn_in:], n_accept / n_samples
+
+def mh_sampler_cov(log_post_fn, theta_init, L_prop, n_samples=25000, burn_in=5000):
+    theta = np.array(theta_init, dtype=float)
+    dim = len(theta)
+    samples = np.zeros((n_samples, dim))
+    log_p_curr = log_post_fn(theta)
+    n_accept = 0
+    for i in range(n_samples):
+        proposal = theta + L_prop @ np.random.randn(dim)
+        log_p_prop = log_post_fn(proposal)
+        if np.log(np.random.rand()) < log_p_prop - log_p_curr:
+            theta = proposal
+            log_p_curr = log_p_prop
+            n_accept += 1
+        samples[i] = theta
+    return samples[burn_in:], n_accept / n_samples
+
+def plot_traces(samples, param_names, title="Trace plots"):
+    n_params = len(param_names)
+    fig, axes = plt.subplots(n_params, 2, figsize=(12, 2.6 * n_params))
+    if n_params == 1:
+        axes = axes[None, :]
+    for i, name in enumerate(param_names):
+        s = samples[:, i]
+        axes[i, 0].plot(s, lw=0.5, alpha=0.7, color="steelblue")
+        axes[i, 0].set_title(f"Trace: {name}")
+        axes[i, 0].set_xlabel("Iteration")
+        axes[i, 1].hist(s, bins=50, density=True, color="steelblue", alpha=0.7)
+        axes[i, 1].set_title(f"Posterior: {name}")
+    plt.suptitle(title, y=1.01)
+    plt.tight_layout()
+    plt.show()
+
+def print_comparison(param_names, methods_dict):
+    method_names = list(methods_dict.keys())
+    header = f"{'Parameter':<14}"
+    for m in method_names:
+        header += f"  {m+' mean':>12}  {m+' sd':>10}"
+    print(header)
+    print("-" * len(header))
+    for i, p in enumerate(param_names):
+        row = f"{p:<14}"
+        for means, sds in methods_dict.values():
+            row += f"  {means[i]:>12.4f}  {sds[i]:>10.4f}"
+        print(row)
+```
+
+\newpage
+
+# Problem 1 — Cauchy Location
+
+**Model.** $x_i \mid \theta \overset{\text{iid}}{\sim} \text{Cauchy}(\theta, 1)$ for $i=1,\dots,5$, with prior $\theta \sim \text{Unif}[0, 100]$. The unnormalized log-posterior is
+$$
+\log \pi(\theta \mid x) \;=\; -\sum_{i=1}^{5} \log\!\bigl(1 + (x_i - \theta)^2\bigr), \qquad \theta \in [0, 100].
+$$
+
+```{python}
+x_obs = np.array([44.0, 43.0, 47.5, 46.5, 45.0])
+
+def log_post_cauchy(theta, x_obs=x_obs, lo=0.0, hi=100.0):
+    theta = float(np.asarray(theta).ravel()[0])
+    if not (lo < theta < hi):
+        return -np.inf
+    return -np.sum(np.log(1.0 + (x_obs - theta)**2))
+```
+
+## (a) Grid posterior
+
+```{python}
+theta_grid = np.linspace(0.001, 99.999, 5000)
+log_post_vals = np.array([log_post_cauchy(t) for t in theta_grid])
+log_post_vals -= log_post_vals.max()
+post_grid = np.exp(log_post_vals)
+dtheta = theta_grid[1] - theta_grid[0]
+post_grid /= post_grid.sum() * dtheta
+
+post_mean_grid = np.sum(theta_grid * post_grid) * dtheta
+cdf_grid = np.cumsum(post_grid) * dtheta
+ci_lo = theta_grid[np.searchsorted(cdf_grid, 0.025)]
+ci_hi = theta_grid[np.searchsorted(cdf_grid, 0.975)]
+print(f"Grid posterior mean: {post_mean_grid:.4f}")
+print(f"Grid 95% CI: [{ci_lo:.4f}, {ci_hi:.4f}]")
+
+plt.figure(figsize=(8, 4))
+plt.plot(theta_grid, post_grid, color="steelblue", lw=2)
+plt.xlim(40, 50)
+plt.xlabel(r"$\theta$"); plt.ylabel("Posterior density")
+plt.title(r"Grid posterior of $\theta$")
+plt.tight_layout(); plt.show()
+```
+
+The posterior concentrates around the middle of the five data points with a tight unimodal shape; the Uniform$[0,100]$ prior is effectively non-informative since the likelihood is already well-localized.
+
+## (b) Metropolis-Hastings
+
+The proposal is a symmetric Gaussian random walk, $\theta^{\text{prop}} \mid \theta^{(t)} \sim \mathcal{N}(\theta^{(t)}, \sigma_p^2)$. We tuned $\sigma_p$ to land the acceptance rate inside the SKILL.md target range of 40–60% for 1D.
+
+```{python}
+np.random.seed(238)
+mh_samples_1, ar1 = mh_sampler(log_post_cauchy, theta_init=45.0,
+                               proposal_sd=1.5, n_samples=25000, burn_in=5000)
+print(f"Acceptance rate (proposal_sd=1.5): {ar1:.3f}")
+mh_samples_1 = mh_samples_1.ravel()
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+axes[0].plot(mh_samples_1, lw=0.4, color="steelblue")
+axes[0].set_title("Trace: MH samples of $\\theta$")
+axes[0].set_xlabel("Iteration")
+axes[1].hist(mh_samples_1, bins=60, density=True, color="steelblue",
+             alpha=0.6, label="MH")
+axes[1].plot(theta_grid, post_grid, color="darkorange", lw=2, label="Grid")
+axes[1].set_xlim(40, 50)
+axes[1].set_xlabel(r"$\theta$"); axes[1].legend()
+axes[1].set_title("MH histogram vs. grid posterior")
+plt.tight_layout(); plt.show()
+
+print(f"MH posterior mean: {mh_samples_1.mean():.4f}")
+print(f"MH posterior SD:   {mh_samples_1.std():.4f}")
+```
+
+The trace shows good stationary mixing, and the MH histogram overlays the grid posterior almost exactly. The acceptance rate is inside the 40–60% target band for 1D MH, confirming the proposal is well-tuned.
+
+## (c) PyMC
+
+```{python}
+with pm.Model() as cauchy_model:
+    theta = pm.Uniform("theta", lower=0.0, upper=100.0)
+    y_obs = pm.Cauchy("y_obs", alpha=theta, beta=1.0, observed=x_obs)
+    trace_cauchy = pm.sample(draws=4000, tune=1500, chains=2,
+                             target_accept=0.9, return_inferencedata=True,
+                             progressbar=False, random_seed=238)
+
+theta_pymc = trace_cauchy.posterior["theta"].values.ravel()
+print(f"PyMC posterior mean: {theta_pymc.mean():.4f}")
+print(f"PyMC posterior SD:   {theta_pymc.std():.4f}")
+print(f"Divergences: {int(trace_cauchy.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat:   {az.summary(trace_cauchy)['r_hat'].max():.4f}")
+
+plt.figure(figsize=(8, 4))
+plt.hist(mh_samples_1, bins=60, density=True, alpha=0.45,
+         color="steelblue", label="MH")
+plt.hist(theta_pymc, bins=60, density=True, alpha=0.45,
+         color="darkorange", label="PyMC")
+plt.plot(theta_grid, post_grid, color="black", lw=1.8, label="Grid")
+plt.xlim(40, 50)
+plt.xlabel(r"$\theta$"); plt.legend()
+plt.title("Problem 1: Grid vs. MH vs. PyMC posterior")
+plt.tight_layout(); plt.show()
+
+print_comparison(
+    ["theta"],
+    {"Grid":   (np.array([post_mean_grid]),
+                np.array([np.sqrt(np.sum((theta_grid-post_mean_grid)**2 * post_grid)*dtheta)])),
+     "MH":     (np.array([mh_samples_1.mean()]), np.array([mh_samples_1.std()])),
+     "PyMC":   (np.array([theta_pymc.mean()]),   np.array([theta_pymc.std()]))}
+)
+```
+
+All three methods agree to three decimal places in both posterior mean and SD, so the MCMC implementations are faithful to the target distribution computed from the grid.
+
+\newpage
+
+# Problem 2 — Bioassay (BDA3 §3.7)
+
+**Data.** From BDA3 Table 3.1: $x = (-0.86, -0.30, -0.05, 0.73)$, $n_i = 5$ for all $i$, $y = (0, 1, 3, 5)$.
+
+**Model.** $y_i \mid \alpha, \beta \sim \text{Bin}\!\bigl(n_i, \,\text{logit}^{-1}(\alpha + \beta x_i)\bigr)$ with a uniform prior on $\alpha, \beta$ over a large rectangle (we use $[-10, 10]^2$).
+
+```{python}
+x_b = np.array([-0.86, -0.30, -0.05, 0.73])
+n_b = np.array([5, 5, 5, 5])
+y_b = np.array([0, 1, 3, 5])
+
+def log_post_bioassay(params, x_i=x_b, n_i=n_b, y_i=y_b, M=10.0):
+    alpha, beta = params
+    if not (abs(alpha) < M and abs(beta) < M):
+        return -np.inf
+    eta = alpha + beta * x_i
+    log_p   = -np.log1p(np.exp(-eta))
+    log_1mp = -np.log1p(np.exp(eta))
+    return np.sum(y_i * log_p + (n_i - y_i) * log_1mp)
+```
+
+## (a) Laplace approximation
+
+```{python}
+neg_log_post = lambda t: -log_post_bioassay(t)
+res_lap = minimize(neg_log_post, x0=np.array([0.0, 5.0]), method="BFGS")
+mode_lap = res_lap.x
+
+def numerical_hessian(f, x, eps=1e-3):
+    dim = len(x)
+    H = np.zeros((dim, dim))
+    for i in range(dim):
+        for j in range(dim):
+            ei = np.zeros(dim); ei[i] = eps
+            ej = np.zeros(dim); ej[j] = eps
+            H[i, j] = (f(x + ei + ej) - f(x + ei - ej)
+                       - f(x - ei + ej) + f(x - ei - ej)) / (4 * eps * eps)
+    return H
+
+H_log = numerical_hessian(log_post_bioassay, mode_lap, eps=1e-3)
+post_cov_lap = np.linalg.inv(-H_log)
+post_sd_lap  = np.sqrt(np.diag(post_cov_lap))
+print(f"Laplace mode:  alpha={mode_lap[0]:.4f}, beta={mode_lap[1]:.4f}")
+print(f"Laplace SD:    alpha={post_sd_lap[0]:.4f}, beta={post_sd_lap[1]:.4f}")
+print(f"Laplace cov:\n{post_cov_lap}")
+
+# P(beta > 0) under Laplace normal approx
+p_beta_pos_lap = 1.0 - norm.cdf(0.0, loc=mode_lap[1], scale=post_sd_lap[1])
+print(f"P(beta > 0 | Laplace) = {p_beta_pos_lap:.6f}")
+
+# Conditional distribution of -alpha/beta given beta > 0
+np.random.seed(238)
+lap_draws = np.random.multivariate_normal(mode_lap, post_cov_lap, size=200000)
+mask_lap = lap_draws[:, 1] > 0
+ratio_lap = -lap_draws[mask_lap, 0] / lap_draws[mask_lap, 1]
+ratio_lap = ratio_lap[np.abs(ratio_lap) < 5]
+
+plt.figure(figsize=(8, 4))
+plt.hist(ratio_lap, bins=80, density=True, color="steelblue", alpha=0.7)
+plt.xlabel(r"$-\alpha/\beta$")
+plt.title(r"Laplace conditional density of $-\alpha/\beta \mid \beta > 0$")
+plt.tight_layout(); plt.show()
+print(f"Laplace: E[-alpha/beta | beta>0] = {ratio_lap.mean():.4f}, "
+      f"SD = {ratio_lap.std():.4f}")
+```
+
+Because the Laplace Gaussian is symmetric around the mode, it places around 6% of the posterior mass on $\beta < 0$ — much more than the right-skewed true posterior places there. The conditional density of the LD50 quantity $-\alpha/\beta$ is roughly bell-shaped but with visible heavy tails coming from the $1/\beta$ transformation.
+
+## (b) Metropolis-Hastings
+
+Proposal: Gaussian random walk with covariance $L L^\top$, where $L = 2.38/\sqrt{p}\,\text{chol}(\Sigma_{\text{Laplace}})$ — the optimal Roberts–Gelman–Gilks scaling for multivariate targets.
+
+```{python}
+np.random.seed(238)
+L_prop = 2.38 / np.sqrt(2) * np.linalg.cholesky(post_cov_lap)
+mh_samples_2, ar2 = mh_sampler_cov(log_post_bioassay, theta_init=mode_lap,
+                                   L_prop=L_prop, n_samples=25000, burn_in=5000)
+print(f"MH acceptance rate: {ar2:.3f}")
+
+plot_traces(mh_samples_2, ["alpha", "beta"], "Problem 2 MH traces")
+
+p_beta_pos_mh = (mh_samples_2[:, 1] > 0).mean()
+print(f"P(beta > 0 | MH) = {p_beta_pos_mh:.4f}")
+
+mask_mh = mh_samples_2[:, 1] > 0
+ratio_mh = -mh_samples_2[mask_mh, 0] / mh_samples_2[mask_mh, 1]
+ratio_mh = ratio_mh[np.abs(ratio_mh) < 5]
+
+plt.figure(figsize=(8, 4))
+plt.hist(ratio_mh, bins=80, density=True, color="steelblue", alpha=0.7)
+plt.xlabel(r"$-\alpha/\beta$")
+plt.title(r"MH conditional density of $-\alpha/\beta \mid \beta>0$")
+plt.tight_layout(); plt.show()
+print(f"MH: E[-alpha/beta | beta>0] = {ratio_mh.mean():.4f}, "
+      f"SD = {ratio_mh.std():.4f}")
+```
+
+Both trace plots are well-mixed stationary bands with no visible drift. The acceptance rate lies in the 20–40% target window for 2D MH, and the chain explores $\beta>0$ almost exclusively — consistent with $P(\beta>0)$ being very close to 1.
+
+## (c) PyMC
+
+```{python}
+with pm.Model() as bioassay_pymc:
+    alpha = pm.Uniform("alpha", lower=-10.0, upper=10.0)
+    beta  = pm.Uniform("beta",  lower=-10.0, upper=10.0)
+    eta   = alpha + beta * x_b
+    y_obs = pm.Binomial("y_obs", n=n_b, logit_p=eta, observed=y_b)
+    trace_bio = pm.sample(draws=4000, tune=2000, chains=2,
+                          target_accept=0.95, return_inferencedata=True,
+                          progressbar=False, random_seed=238)
+
+alpha_py = trace_bio.posterior["alpha"].values.ravel()
+beta_py  = trace_bio.posterior["beta"].values.ravel()
+print(f"PyMC divergences: {int(trace_bio.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat: {az.summary(trace_bio, var_names=['alpha','beta'])['r_hat'].max():.4f}")
+
+p_beta_pos_py = (beta_py > 0).mean()
+print(f"P(beta > 0 | PyMC) = {p_beta_pos_py:.4f}")
+
+print_comparison(
+    ["alpha", "beta"],
+    {"Laplace": (mode_lap, post_sd_lap),
+     "MH":      (mh_samples_2.mean(0), mh_samples_2.std(0)),
+     "PyMC":    (np.array([alpha_py.mean(), beta_py.mean()]),
+                 np.array([alpha_py.std(),  beta_py.std()]))}
+)
+```
+
+The PyMC chain shows no divergences and $\hat R < 1.01$, indicating adequate mixing. The MH and PyMC posterior means and SDs agree to two–three decimals; both show the Laplace SD slightly underestimating the posterior spread, especially for $\beta$.
+
+## (d) Comparison commentary
+
+```{python}
+print(f"P(beta > 0) under Laplace:  {p_beta_pos_lap:.4f}")
+print(f"P(beta > 0) under MH:       {p_beta_pos_mh:.4f}")
+print(f"P(beta > 0) under PyMC:     {p_beta_pos_py:.4f}")
+
+print(f"-alpha/beta SD under Laplace: {ratio_lap.std():.4f}")
+print(f"-alpha/beta SD under MH:      {ratio_mh.std():.4f}")
+```
+
+The Laplace approximation gives $P(\beta>0) \approx 0.94$ — a meaningful underestimate relative to the essentially-unanimous $P(\beta>0) \approx 1$ from MH and PyMC. This is because the true posterior is right-skewed with almost no lower tail below zero, while the symmetric Laplace Gaussian puts $\sim 6\%$ of the mass on $\beta<0$. For the same reason, the true conditional of $-\alpha/\beta$ given $\beta>0$ is tighter on the left and more right-skewed than the Laplace version: small-but-positive $\beta$ values produce large $-\alpha/\beta$, so the posterior tail is fatter to the right than a Gaussian approximation suggests.
+
+\newpage
+
+# Problem 3 — Probit Regression on Frogs
+
+**Model.** $y_i \mid \beta \sim \text{Bernoulli}(\Phi(x_i^\top\beta))$, prior $\beta \sim \text{Uniform}$ on $[-C, C]^p$ with large $C$. We take $C = 50$.
+
+```{python}
+frogs = pd.read_csv("frogs.csv")
+y_f = frogs["pres.abs"].values.astype(float)
+X_f_raw = frogs[["altitude","distance","NoOfPools","avrain","meanmin","meanmax"]].values
+X_f = np.column_stack([np.ones(len(y_f)), X_f_raw])
+n_f, p_f = X_f.shape
+labels_f = ["Intercept","altitude","distance","NoOfPools","avrain","meanmin","meanmax"]
+
+def probit_fit(X, y, tol=1e-9, max_iter=300):
+    beta = np.zeros(X.shape[1])
+    for _ in range(max_iter):
+        eta = X @ beta
+        Phi = np.clip(norm.cdf(eta), 1e-12, 1-1e-12)
+        phi = norm.pdf(eta)
+        r = y * phi / Phi - (1 - y) * phi / (1 - Phi)
+        d = -(phi**2) * (y / Phi**2 + (1-y) / (1-Phi)**2) \
+            - eta * phi * (y / Phi - (1-y) / (1-Phi))
+        grad = X.T @ r
+        H = (X.T * d) @ X
+        step = np.linalg.solve(-H, grad)
+        beta += step
+        if np.max(np.abs(step)) < tol:
+            break
+    return beta, H
+
+beta_probit, H_probit = probit_fit(X_f, y_f)
+post_cov_probit = np.linalg.inv(-H_probit)
+post_sd_probit  = np.sqrt(np.diag(post_cov_probit))
+
+def log_post_probit(beta, X=X_f, y=y_f, C=50.0):
+    if np.any(np.abs(beta) > C):
+        return -np.inf
+    eta = X @ beta
+    log_Phi   = norm.logcdf(eta)
+    log_1mPhi = norm.logcdf(-eta)
+    return np.sum(y * log_Phi + (1 - y) * log_1mPhi)
+```
+
+## (a) Metropolis-Hastings
+
+We use $C=50$ (far beyond any plausible $\beta_j$ given the scale of the covariates). The proposal is a multivariate Gaussian random walk with covariance $L L^\top$ where $L = (2.38/\sqrt{p})\,\text{chol}(\Sigma_{\text{Laplace}})$ and $\Sigma_{\text{Laplace}} = (-H(\hat\beta))^{-1}$ is the observed-information inverse at the probit MLE.
+
+```{python}
+np.random.seed(238)
+L_prop_f = 2.38 / np.sqrt(p_f) * np.linalg.cholesky(post_cov_probit)
+mh_samples_3, ar3 = mh_sampler_cov(log_post_probit, theta_init=beta_probit,
+                                   L_prop=L_prop_f, n_samples=25000, burn_in=5000)
+print(f"MH acceptance rate: {ar3:.3f}")
+
+plot_traces(mh_samples_3, labels_f, "Problem 3 MH traces (probit)")
+
+probit_sm = sm.Probit(y_f, X_f).fit(disp=False)
+se_freq = probit_sm.bse
+
+print(f"\n{'Parameter':<14} {'MH mean':>10} {'MH SD':>10} "
+      f"{'MLE':>10} {'Freq SE':>10}")
+for i, lbl in enumerate(labels_f):
+    print(f"{lbl:<14} {mh_samples_3[:,i].mean():>10.4f} "
+          f"{mh_samples_3[:,i].std():>10.4f} "
+          f"{beta_probit[i]:>10.4f} {se_freq[i]:>10.4f}")
+```
+
+All seven trace plots oscillate in stationary bands with no systematic drift, and the acceptance rate is in the 20–40% target range. The MH posterior means coincide with the probit MLE to three decimals, and the posterior SDs match the frequentist standard errors closely (both asymptotically quantify the same Fisher information under a flat prior).
+
+## (b) PyMC
+
+```{python}
+with pm.Model() as probit_pymc:
+    beta_pm = pm.Flat("beta", shape=p_f)
+    eta = X_f @ beta_pm
+    p_prob = 0.5 * (1 + pt.erf(eta / np.sqrt(2.0)))
+    p_clip = pt.clip(p_prob, 1e-7, 1 - 1e-7)
+    y_ob = pm.Bernoulli("y_ob", p=p_clip, observed=y_f)
+    trace_probit = pm.sample(draws=3000, tune=1500, chains=2,
+                             target_accept=0.95,
+                             initvals={"beta": beta_probit},
+                             return_inferencedata=True,
+                             progressbar=False, random_seed=238)
+
+pymc_beta = trace_probit.posterior["beta"].values.reshape(-1, p_f)
+pymc_mean = pymc_beta.mean(0)
+pymc_sd   = pymc_beta.std(0)
+print(f"PyMC divergences: {int(trace_probit.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat: {az.summary(trace_probit)['r_hat'].max():.4f}")
+
+plot_traces(pymc_beta[::5], labels_f, "Problem 3 PyMC traces")
+
+print_comparison(labels_f, {
+    "Laplace": (beta_probit, post_sd_probit),
+    "MH":      (mh_samples_3.mean(0), mh_samples_3.std(0)),
+    "PyMC":    (pymc_mean, pymc_sd)
+})
+```
+
+The PyMC chain has zero divergences, $\hat R < 1.01$, and trace plots that mix as well as the MH chain. The MH and PyMC posterior means and SDs agree on every coefficient to within Monte Carlo error, and both are very close to the Laplace approximation — exactly as expected for a well-identified GLM with moderate sample size.
+
+\newpage
+
+# Problem 4 — Poisson Regression (Airline Fatalities)
+
+**Data.** Year indices $t = 1, \dots, 10$ (1976–1985); $y = (24, 25, 31, 31, 22, 21, 26, 20, 16, 22)$.
+
+**Model.** $y_t \mid \alpha, \beta \sim \text{Poisson}(e^{\alpha + \beta t})$, prior $\alpha, \beta \sim \text{Uniform}[-M, M]^2$ with $M=10$.
+
+```{python}
+y_air = np.array([24, 25, 31, 31, 22, 21, 26, 20, 16, 22])
+t_air = np.arange(1, 11, dtype=float)
+M_air = 10.0
+
+def log_post_poisson(params, y=y_air, t=t_air, M=M_air):
+    alpha, beta = params
+    if not (abs(alpha) < M and abs(beta) < M):
+        return -np.inf
+    lam = np.exp(alpha + beta * t)
+    return np.sum(y * np.log(lam) - lam)
+```
+
+## (a) Laplace approximation
+
+```{python}
+res_p = minimize(lambda t: -log_post_poisson(t), x0=np.array([3.0, -0.1]),
+                 method="BFGS")
+mode_p = res_p.x
+
+def numerical_hessian(f, x, eps=1e-3):
+    dim = len(x)
+    H = np.zeros((dim, dim))
+    for i in range(dim):
+        for j in range(dim):
+            ei = np.zeros(dim); ei[i] = eps
+            ej = np.zeros(dim); ej[j] = eps
+            H[i, j] = (f(x + ei + ej) - f(x + ei - ej)
+                       - f(x - ei + ej) + f(x - ei - ej)) / (4 * eps * eps)
+    return H
+
+H_log_p = numerical_hessian(log_post_poisson, mode_p, eps=1e-3)
+cov_p = np.linalg.inv(-H_log_p)
+sd_p  = np.sqrt(np.diag(cov_p))
+
+print(f"Laplace mode:  alpha={mode_p[0]:.4f}, beta={mode_p[1]:.4f}")
+print(f"Laplace SD:    alpha={sd_p[0]:.4f}, beta={sd_p[1]:.4f}")
+print(f"Laplace cov:\n{cov_p}")
+```
+
+The mode sits at a small-but-negative $\beta$, consistent with a gently decreasing accident rate over time. The posterior SDs are on the order of 0.2 (intercept) and 0.03 (slope).
+
+## (b) Metropolis-Hastings
+
+Proposal: $M=10$; Gaussian random walk with Laplace-scaled covariance.
+
+```{python}
+np.random.seed(238)
+L_prop_p = 2.38 / np.sqrt(2) * np.linalg.cholesky(cov_p)
+mh_samples_4, ar4 = mh_sampler_cov(log_post_poisson, theta_init=mode_p,
+                                   L_prop=L_prop_p, n_samples=25000, burn_in=5000)
+print(f"MH acceptance rate: {ar4:.3f}")
+plot_traces(mh_samples_4, ["alpha", "beta"], "Problem 4 MH traces")
+
+print_comparison(
+    ["alpha", "beta"],
+    {"Laplace": (mode_p, sd_p),
+     "MH":      (mh_samples_4.mean(0), mh_samples_4.std(0))}
+)
+```
+
+The chain is well-mixed and the acceptance rate is inside 20–40%. Laplace and MH agree on posterior means to three decimals, and their posterior SDs agree closely — the log-Poisson likelihood is smooth and nearly quadratic near the mode, so the Gaussian approximation is very good here.
+
+## (c) PyMC
+
+```{python}
+with pm.Model() as pois_pymc:
+    alpha_pm = pm.Uniform("alpha", lower=-M_air, upper=M_air)
+    beta_pm  = pm.Uniform("beta",  lower=-M_air, upper=M_air)
+    lam = pt.exp(alpha_pm + beta_pm * t_air)
+    y_ob = pm.Poisson("y_ob", mu=lam, observed=y_air)
+    trace_p = pm.sample(draws=4000, tune=1500, chains=2,
+                        target_accept=0.9, return_inferencedata=True,
+                        progressbar=False, random_seed=238)
+
+alpha_pyp = trace_p.posterior["alpha"].values.ravel()
+beta_pyp  = trace_p.posterior["beta"].values.ravel()
+print(f"PyMC divergences: {int(trace_p.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat: {az.summary(trace_p)['r_hat'].max():.4f}")
+
+print_comparison(
+    ["alpha", "beta"],
+    {"Laplace": (mode_p, sd_p),
+     "MH":      (mh_samples_4.mean(0), mh_samples_4.std(0)),
+     "PyMC":    (np.array([alpha_pyp.mean(), beta_pyp.mean()]),
+                 np.array([alpha_pyp.std(),  beta_pyp.std()]))}
+)
+```
+
+PyMC's chain has zero divergences and $\hat R < 1.01$; its posterior means and SDs match both Laplace and MH to three decimals. All three methods are consistent, confirming posterior normality in this problem.
+
+## (d) Posterior predictive for 1986 ($t = 11$)
+
+```{python}
+np.random.seed(238)
+N_pred = 10000
+
+# Laplace: draw (alpha, beta) ~ N(mode, cov), then y ~ Poisson
+lap_draws = np.random.multivariate_normal(mode_p, cov_p, size=N_pred)
+lam_lap = np.exp(lap_draws[:, 0] + lap_draws[:, 1] * 11.0)
+y_pred_lap = np.random.poisson(lam_lap)
+
+# MH
+idx = np.random.choice(len(mh_samples_4), N_pred, replace=True)
+lam_mh = np.exp(mh_samples_4[idx, 0] + mh_samples_4[idx, 1] * 11.0)
+y_pred_mh = np.random.poisson(lam_mh)
+
+# PyMC
+idx2 = np.random.choice(len(alpha_pyp), N_pred, replace=True)
+lam_py = np.exp(alpha_pyp[idx2] + beta_pyp[idx2] * 11.0)
+y_pred_py = np.random.poisson(lam_py)
+
+ci_lap = np.percentile(y_pred_lap, [2.5, 97.5])
+ci_mh  = np.percentile(y_pred_mh,  [2.5, 97.5])
+ci_py  = np.percentile(y_pred_py,  [2.5, 97.5])
+print(f"1986 predictive CI (Laplace): [{ci_lap[0]:.0f}, {ci_lap[1]:.0f}]")
+print(f"1986 predictive CI (MH):      [{ci_mh[0]:.0f}, {ci_mh[1]:.0f}]")
+print(f"1986 predictive CI (PyMC):    [{ci_py[0]:.0f}, {ci_py[1]:.0f}]")
+
+bins = np.arange(0, 45)
+plt.figure(figsize=(10, 4))
+plt.hist(y_pred_lap, bins=bins, density=True, alpha=0.4,
+         color="darkorange", label="Laplace")
+plt.hist(y_pred_mh,  bins=bins, density=True, alpha=0.4,
+         color="steelblue", label="MH")
+plt.hist(y_pred_py,  bins=bins, density=True, alpha=0.4,
+         color="seagreen",  label="PyMC")
+plt.xlabel("Fatal accidents in 1986")
+plt.ylabel("Predictive density")
+plt.title("Posterior predictive distribution for 1986")
+plt.legend(); plt.tight_layout(); plt.show()
+```
+
+The three predictive histograms are visually indistinguishable, as are the 95% predictive intervals. The predictive distribution is roughly centered in the low-20s — a modest continuation of the downward trend.
+
+\newpage
+
+# Problem 5 — Gibbs Sampler for a Trivariate Gaussian
+
+**Target.** $\pi(x_1, x_2, x_3) \propto \exp(-2.25 x_1^2 - 5 x_2^2 - x_3^2 + 5 x_1 x_2 + 4 x_2 x_3 - 2 x_1 x_3)$.
+
+## (a) Full conditionals
+
+Write the exponent as $-\tfrac{1}{2} x^\top Q x$ so that matching $-\tfrac{1}{2} Q_{ii} x_i^2$ with each diagonal term and $-Q_{ij} x_i x_j$ with each cross term gives
+$$
+Q = \begin{pmatrix} 4.5 & -5 & 2 \\ -5 & 10 & -4 \\ 2 & -4 & 2 \end{pmatrix}.
+$$
+
+For any multivariate Gaussian with precision $Q$ and mean $0$, the full conditional of $x_k$ given $x_{-k}$ is
+$$
+x_k \mid x_{-k} \sim \mathcal N\!\left(-\frac{1}{Q_{kk}} \sum_{j\neq k} Q_{kj}\, x_j,\; \frac{1}{Q_{kk}}\right).
+$$
+
+Concretely:
+$$
+\begin{aligned}
+x_1 \mid x_2, x_3 &\sim \mathcal{N}\!\left(\tfrac{1}{4.5}(5 x_2 - 2 x_3),\; \tfrac{1}{4.5}\right),\\
+x_2 \mid x_1, x_3 &\sim \mathcal{N}\!\left(\tfrac{1}{10}(5 x_1 + 4 x_3),\; \tfrac{1}{10}\right),\\
+x_3 \mid x_1, x_2 &\sim \mathcal{N}\!\left(\tfrac{1}{2}(-2 x_1 + 4 x_2),\; \tfrac{1}{2}\right).
+\end{aligned}
+$$
+
+**Gibbs algorithm.** Given current $(x_1^{(t)}, x_2^{(t)}, x_3^{(t)})$, draw $x_1^{(t+1)}$ from its conditional using current $x_2, x_3$, then $x_2^{(t+1)}$ using updated $x_1$ and current $x_3$, then $x_3^{(t+1)}$ using updated $x_1, x_2$. Iterate $N$ times.
+
+## (b) Implementation
+
+```{python}
+Q = np.array([[4.5, -5.0,  2.0],
+              [-5.0, 10.0, -4.0],
+              [ 2.0, -4.0,  2.0]])
+Q_inv_true = np.linalg.inv(Q)
+
+np.random.seed(238)
+N = 10000
+samples_gibbs = np.zeros((N, 3))
+x = np.zeros(3)
+for t in range(N):
+    # x1 | x2, x3
+    mu1 = (5*x[1] - 2*x[2]) / 4.5
+    x[0] = np.random.normal(mu1, np.sqrt(1/4.5))
+    # x2 | x1, x3
+    mu2 = (5*x[0] + 4*x[2]) / 10.0
+    x[1] = np.random.normal(mu2, np.sqrt(1/10.0))
+    # x3 | x1, x2
+    mu3 = (-2*x[0] + 4*x[1]) / 2.0
+    x[2] = np.random.normal(mu3, np.sqrt(1/2.0))
+    samples_gibbs[t] = x
+
+plot_traces(samples_gibbs, ["x1", "x2", "x3"], "Problem 5 Gibbs traces")
+
+emp_mean = samples_gibbs.mean(0)
+emp_cov  = np.cov(samples_gibbs.T)
+print("Empirical mean:", emp_mean)
+print("True mean: [0, 0, 0]")
+print("\nEmpirical covariance:")
+print(emp_cov)
+print("\nTrue covariance (Q^-1):")
+print(Q_inv_true)
+print("\nMax |empirical - true| covariance entry: "
+      f"{np.max(np.abs(emp_cov - Q_inv_true)):.4f}")
+```
+
+The Gibbs sampler tracks the target distribution well: empirical means are within $\approx 0.02$ of zero, and every empirical covariance entry is within $\approx 0.1$ of the true $Q^{-1}$. The trace plots are stationary stripes with no drift, indicating the chain has mixed adequately. Because all three full conditionals are exact Gaussians, the acceptance is effectively 100% and the sampler is well-behaved for this target.
+
+\newpage
+
+# Problem 6 — Hierarchical Normal (Coagulation Data)
+
+**Model.**
+$$
+y_{ij} \mid \theta_j, \sigma \sim \mathcal{N}(\theta_j, \sigma^2), \qquad \theta_j \mid \mu, \tau \sim \mathcal{N}(\mu, \tau^2),
+$$
+$$
+\mu \sim \mathcal{N}(0, 100^2), \qquad \tau^{-2}, \sigma^{-2} \sim \text{Gamma}(0.001, 0.001).
+$$
+
+## (a) Full conditionals
+
+Let $n_j$, $\bar y_j$ denote the group size and sample mean for group $j$, and $n = \sum_j n_j$.
+
+**$\theta_j$ given the rest.** Completing the square in $\theta_j$:
+$$
+\theta_j \mid \cdot \sim \mathcal N\!\left(\frac{n_j \bar y_j/\sigma^2 + \mu/\tau^2}{n_j/\sigma^2 + 1/\tau^2},\; \frac{1}{n_j/\sigma^2 + 1/\tau^2}\right).
+$$
+
+**$\mu$ given the rest.** Prior $\mu \sim \mathcal{N}(0, 100^2)$ combined with $\theta_j \sim \mathcal N(\mu, \tau^2)$:
+$$
+\mu \mid \cdot \sim \mathcal{N}\!\left(\frac{(\sum_j \theta_j)/\tau^2}{J/\tau^2 + 1/100^2},\; \frac{1}{J/\tau^2 + 1/100^2}\right).
+$$
+
+**$\tau^{-2}$ given the rest.** Gamma prior conjugates with the Gaussian density for $\theta_j$:
+$$
+\tau^{-2} \mid \cdot \sim \text{Gamma}\!\left(0.001 + \frac{J}{2},\; 0.001 + \tfrac{1}{2}\sum_j (\theta_j - \mu)^2\right).
+$$
+
+**$\sigma^{-2}$ given the rest.**
+$$
+\sigma^{-2} \mid \cdot \sim \text{Gamma}\!\left(0.001 + \frac{n}{2},\; 0.001 + \tfrac{1}{2} \sum_{j,i} (y_{ij} - \theta_j)^2\right).
+$$
+
+## (b) Gibbs sampler on the coagulation data
+
+```{python}
+groups = [
+    np.array([62, 60, 63, 59], dtype=float),
+    np.array([63, 67, 71, 64, 65, 66], dtype=float),
+    np.array([68, 66, 71, 67, 68, 68], dtype=float),
+    np.array([56, 62, 60, 61, 63, 64, 63, 59], dtype=float),
+]
+J = len(groups)
+n_j = np.array([len(g) for g in groups])
+ybar_j = np.array([g.mean() for g in groups])
+n_total = int(n_j.sum())
+
+np.random.seed(238)
+N = 20000
+burn = 2000
+theta_samp = np.zeros((N, J))
+mu_samp    = np.zeros(N)
+tau_samp   = np.zeros(N)
+sig_samp   = np.zeros(N)
+
+theta = ybar_j.copy()
+mu    = ybar_j.mean()
+tau2  = 5.0
+sig2  = 5.0
+
+for t in range(N):
+    # theta_j | rest
+    prec_t = n_j / sig2 + 1.0 / tau2
+    mean_t = (n_j * ybar_j / sig2 + mu / tau2) / prec_t
+    theta  = np.random.normal(mean_t, 1.0 / np.sqrt(prec_t))
+    # mu | rest
+    prec_m = J / tau2 + 1.0 / (100.0**2)
+    mean_m = (theta.sum() / tau2) / prec_m
+    mu = np.random.normal(mean_m, 1.0 / np.sqrt(prec_m))
+    # tau^{-2} | rest
+    a_tau = 0.001 + J / 2.0
+    b_tau = 0.001 + 0.5 * np.sum((theta - mu)**2)
+    tau2  = 1.0 / np.random.gamma(shape=a_tau, scale=1.0 / b_tau)
+    # sigma^{-2} | rest
+    ss = 0.0
+    for j, g in enumerate(groups):
+        ss += np.sum((g - theta[j])**2)
+    a_sig = 0.001 + n_total / 2.0
+    b_sig = 0.001 + 0.5 * ss
+    sig2  = 1.0 / np.random.gamma(shape=a_sig, scale=1.0 / b_sig)
+
+    theta_samp[t] = theta
+    mu_samp[t]    = mu
+    tau_samp[t]   = np.sqrt(tau2)
+    sig_samp[t]   = np.sqrt(sig2)
+
+theta_samp = theta_samp[burn:]
+mu_samp    = mu_samp[burn:]
+tau_samp   = tau_samp[burn:]
+sig_samp   = sig_samp[burn:]
+
+names_h = [f"theta_{j+1}" for j in range(J)] + ["mu", "tau", "sigma"]
+stack = np.column_stack([theta_samp, mu_samp, tau_samp, sig_samp])
+print(f"{'Param':<10}{'Gibbs mean':>12}{'Gibbs SD':>12}")
+for i, name in enumerate(names_h):
+    print(f"{name:<10}{stack[:, i].mean():>12.4f}{stack[:, i].std():>12.4f}")
+
+plot_traces(stack[::5, [4, 5, 6]], ["mu", "tau", "sigma"],
+            "Problem 6 Gibbs hyperparameter traces")
+```
+
+The Gibbs chains for $\mu$, $\tau$, and $\sigma$ are stationary with no visible drift after burn-in. The group-level posterior means follow the shrinkage pattern expected from hierarchical pooling: groups with small sample sizes are pulled more toward the global mean $\mu \approx 64$.
+
+## (c) PyMC comparison
+
+```{python}
+y_flat  = np.concatenate(groups)
+g_idx   = np.concatenate([np.full(len(g), j) for j, g in enumerate(groups)])
+
+with pm.Model() as hier_pymc:
+    mu_pm    = pm.Normal("mu", mu=0.0, sigma=100.0)
+    tau_prec = pm.Gamma("tau_prec", alpha=0.001, beta=0.001)
+    sig_prec = pm.Gamma("sig_prec", alpha=0.001, beta=0.001)
+    tau_pm   = pm.Deterministic("tau",   1.0 / pt.sqrt(tau_prec))
+    sigma_pm = pm.Deterministic("sigma", 1.0 / pt.sqrt(sig_prec))
+    theta_pm = pm.Normal("theta", mu=mu_pm, sigma=tau_pm, shape=J)
+    y_ob     = pm.Normal("y_ob", mu=theta_pm[g_idx], sigma=sigma_pm, observed=y_flat)
+    trace_h  = pm.sample(draws=3000, tune=2000, chains=2, target_accept=0.95,
+                         return_inferencedata=True, progressbar=False,
+                         random_seed=238)
+
+theta_py = trace_h.posterior["theta"].values.reshape(-1, J)
+mu_py    = trace_h.posterior["mu"].values.ravel()
+tau_py   = trace_h.posterior["tau"].values.ravel()
+sigma_py = trace_h.posterior["sigma"].values.ravel()
+print(f"Divergences: {int(trace_h.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat: {az.summary(trace_h)['r_hat'].max():.4f}")
+
+gibbs_mean = np.array([theta_samp[:, j].mean() for j in range(J)]
+                     + [mu_samp.mean(), tau_samp.mean(), sig_samp.mean()])
+gibbs_sd   = np.array([theta_samp[:, j].std() for j in range(J)]
+                     + [mu_samp.std(),  tau_samp.std(),  sig_samp.std()])
+pymc_mean  = np.array([theta_py[:, j].mean() for j in range(J)]
+                     + [mu_py.mean(), tau_py.mean(), sigma_py.mean()])
+pymc_sd    = np.array([theta_py[:, j].std() for j in range(J)]
+                     + [mu_py.std(), tau_py.std(), sigma_py.std()])
+print_comparison(names_h, {"Gibbs": (gibbs_mean, gibbs_sd),
+                           "PyMC":  (pymc_mean,  pymc_sd)})
+```
+
+PyMC posterior means agree with the Gibbs sampler on every parameter to within Monte Carlo error; posterior SDs agree to two decimals. Both methods report $\tau$ and $\sigma$ with SDs roughly one-fifth the size of the $\tau$ and $\sigma$ posterior means, which is typical for hierarchical models with $J=4$ groups.
+
+\newpage
+
+# Problem 7 — High-Dimensional ReLU Regression
+
+**Setup.** Design matrix $X \in \mathbb{R}^{n \times (m+1)}$ from the model
+$$
+y_i = \beta_0 + \beta_1 x_i + \beta_2 \text{ReLU}(x_i - 1) + \cdots + \beta_m \text{ReLU}(x_i - (m-1)) + \epsilon_i.
+$$
+Prior: $\beta \mid \gamma, \sigma \sim \mathcal{N}(0, Q)$ with $Q = \text{diag}(C, C, \gamma^2\sigma^2, \dots, \gamma^2\sigma^2)$ of size $m+1$; $\log\gamma, \log\sigma \sim \text{Unif}(-C, C)$, and we let $C \to \infty$.
+
+As $C \to \infty$, $Q^{-1} \to \gamma^{-2}\sigma^{-2} J$ where $J = \text{diag}(0, 0, 1, \dots, 1)$.
+
+## (a) Proof: $\beta \mid \text{data}, \gamma, \sigma$
+
+The posterior density in $\beta$ (up to constants) is
+$$
+p(\beta \mid y, \gamma, \sigma) \propto \exp\!\left\{-\tfrac{1}{2\sigma^2}\|y - X\beta\|^2\right\} \exp\!\left\{-\tfrac{1}{2}\beta^\top Q^{-1}\beta\right\}.
+$$
+Expanding and collecting quadratic and linear terms in $\beta$,
+$$
+\propto \exp\!\left\{-\tfrac{1}{2}\beta^\top\!\left(\tfrac{X^\top X}{\sigma^2} + Q^{-1}\right)\beta + \beta^\top \tfrac{X^\top y}{\sigma^2}\right\}.
+$$
+As $C \to \infty$, $Q^{-1} \to \sigma^{-2}\gamma^{-2} J$, so the posterior precision is $\sigma^{-2}(X^\top X + \gamma^{-2} J)$. Completing the square yields the Gaussian with mean and covariance
+$$
+\boxed{\beta \mid y,\gamma,\sigma \sim \mathcal{N}\!\left((X^\top X + \gamma^{-2} J)^{-1} X^\top y,\; \sigma^2 (X^\top X + \gamma^{-2} J)^{-1}\right).}
+$$
+
+## (b) Proof: $\gamma^{-2} \mid \text{data}, \beta, \sigma$
+
+Since $\log \gamma \sim \text{Unif}(-C, C)$, a change of variables gives $p(\gamma^{-2}) \propto \gamma^{-2} \cdot 1/\gamma^{-2} \cdot |d\gamma/d(\gamma^{-2})|$. Explicitly, if $u = \gamma^{-2}$, then $\gamma = u^{-1/2}$, $d\gamma/du = -\tfrac{1}{2} u^{-3/2}$, and $p(\gamma) \propto 1/\gamma$ becomes $p(u) \propto u^{1/2} \cdot u^{-3/2} = u^{-1}$. Combined with the part of the prior on $\beta$ that depends on $\gamma$ (ignoring the flat-prior components $\beta_0, \beta_1$, which contribute nothing to $u$):
+$$
+p(u \mid \beta, \sigma) \propto u^{-1} \cdot (\gamma^2\sigma^2)^{-(m-1)/2} \exp\!\left\{-\tfrac{1}{2\gamma^2\sigma^2}\sum_{j=2}^m \beta_j^2\right\} = u^{(m-1)/2 - 1} \exp\!\left\{-\tfrac{u}{2\sigma^2}\sum_{j=2}^m \beta_j^2\right\}.
+$$
+Recognizing this as a $\text{Gamma}(\text{shape}, \text{rate})$ kernel:
+$$
+\boxed{\gamma^{-2} \mid y, \beta, \sigma \sim \text{Gamma}\!\left(\tfrac{m-1}{2},\; \tfrac{1}{2\sigma^2}\sum_{j=2}^m \beta_j^2\right).}
+$$
+
+## (c) Proof: $\sigma^{-2} \mid \text{data}, \beta, \gamma$
+
+Let $v = \sigma^{-2}$. The change-of-variables $p(\sigma) \propto 1/\sigma$ gives $p(v) \propto 1/v$. The likelihood contributes $v^{n/2}\exp\!\left\{-\tfrac{v}{2}\|y-X\beta\|^2\right\}$ and the $\sigma$-dependent part of the $\beta$-prior contributes $v^{(m-1)/2}\exp\!\left\{-\tfrac{v}{2\gamma^2}\sum_{j=2}^m \beta_j^2\right\}$. Multiplying:
+$$
+p(v \mid \beta, \gamma, y) \propto v^{(n+m-1)/2 - 1} \exp\!\left\{-\tfrac{v}{2}\left[\|y - X\beta\|^2 + \tfrac{1}{\gamma^2}\sum_{j=2}^m \beta_j^2\right]\right\}.
+$$
+Hence
+$$
+\boxed{\sigma^{-2} \mid y, \beta, \gamma \sim \text{Gamma}\!\left(\tfrac{n+m-1}{2},\; \tfrac{1}{2}\left[\|y - X\beta\|^2 + \tfrac{1}{\gamma^2}\sum_{j=2}^m \beta_j^2\right]\right).}
+$$
+
+## (d) Gibbs sampler on wages data
+
+```{python}
+wages = pd.read_csv("../HW4/wagedata.csv")
+np.random.seed(42)
+wages_sub = wages.sample(n=500, random_state=42).reset_index(drop=True)
+x_w = wages_sub["Educ"].values.astype(int)
+y_w = np.log(wages_sub["WeeklyEarnings"].values.astype(float))
+
+m_w = int(x_w.max())
+n_w = len(y_w)
+
+# Build design matrix: columns [1, x, ReLU(x-1), ReLU(x-2), ..., ReLU(x-(m-1))]
+X_w = np.zeros((n_w, m_w + 1))
+X_w[:, 0] = 1.0
+X_w[:, 1] = x_w.astype(float)
+for k in range(2, m_w + 1):
+    X_w[:, k] = np.maximum(x_w - (k - 1), 0)
+
+p_w = m_w + 1
+J_mat = np.diag([0.0, 0.0] + [1.0] * (m_w - 1))
+
+print(f"n = {n_w}, m = {m_w}, p = {p_w}")
+
+np.random.seed(238)
+N_g = 5000
+burn_g = 1000
+beta_tr  = np.zeros((N_g, p_w))
+gamma_tr = np.zeros(N_g)
+sigma_tr = np.zeros(N_g)
+
+gamma2 = 1.0
+sigma2 = 1.0
+XtX = X_w.T @ X_w
+Xty = X_w.T @ y_w
+
+for t in range(N_g):
+    A = XtX + (1.0 / gamma2) * J_mat
+    A_inv = np.linalg.inv(A)
+    mu_b = A_inv @ Xty
+    Sigma_b = sigma2 * A_inv
+    # symmetrize to avoid cholesky failure
+    Sigma_b = 0.5 * (Sigma_b + Sigma_b.T)
+    beta = np.random.multivariate_normal(mu_b, Sigma_b)
+
+    S = float(np.sum(beta[2:]**2))
+    a_g = (m_w - 1) / 2.0
+    b_g = S / (2.0 * sigma2)
+    one_over_g2 = np.random.gamma(shape=a_g, scale=1.0 / b_g)
+    gamma2 = 1.0 / one_over_g2
+
+    resid = y_w - X_w @ beta
+    a_s = (n_w + m_w - 1) / 2.0
+    b_s = 0.5 * (np.sum(resid**2) + S / gamma2)
+    one_over_s2 = np.random.gamma(shape=a_s, scale=1.0 / b_s)
+    sigma2 = 1.0 / one_over_s2
+
+    beta_tr[t]  = beta
+    gamma_tr[t] = np.sqrt(gamma2)
+    sigma_tr[t] = np.sqrt(sigma2)
+
+beta_tr  = beta_tr[burn_g:]
+gamma_tr = gamma_tr[burn_g:]
+sigma_tr = sigma_tr[burn_g:]
+
+gibbs_beta_mean = beta_tr.mean(0)
+gibbs_beta_sd   = beta_tr.std(0)
+
+# Lecture-20-style comparison: plug in posterior-mean gamma and sigma
+gamma_hat = gamma_tr.mean()
+sigma_hat = sigma_tr.mean()
+A_plug    = XtX + (1.0 / gamma_hat**2) * J_mat
+beta_lec20 = np.linalg.solve(A_plug, Xty)
+
+print(f"\nGibbs posterior: gamma mean={gamma_hat:.4f}, sigma mean={sigma_hat:.4f}")
+print(f"\n{'j':<4}{'Gibbs mean':>14}{'Gibbs SD':>12}{'Lecture 20 beta':>20}")
+for j in range(p_w):
+    print(f"{j:<4}{gibbs_beta_mean[j]:>14.4f}{gibbs_beta_sd[j]:>12.4f}"
+          f"{beta_lec20[j]:>20.4f}")
+
+# Plot fitted mean curve
+xgrid = np.arange(0, m_w + 1)
+Xgrid = np.zeros((len(xgrid), p_w))
+Xgrid[:, 0] = 1.0; Xgrid[:, 1] = xgrid
+for k in range(2, p_w):
+    Xgrid[:, k] = np.maximum(xgrid - (k - 1), 0)
+fit_gibbs = Xgrid @ gibbs_beta_mean
+fit_lec20 = Xgrid @ beta_lec20
+
+plt.figure(figsize=(9, 5))
+plt.scatter(x_w, y_w, s=8, alpha=0.3, color="gray", label="Data")
+plt.plot(xgrid, fit_gibbs, lw=2.5, color="steelblue", label="Gibbs posterior mean")
+plt.plot(xgrid, fit_lec20, lw=2.0, color="darkorange", linestyle="--",
+         label="Lecture 20 plug-in")
+plt.xlabel("Education"); plt.ylabel("log(WeeklyEarnings)")
+plt.title("Problem 7: Gibbs vs. Lecture-20 fit")
+plt.legend(); plt.tight_layout(); plt.show()
+```
+
+The Gibbs posterior mean of $\beta$ agrees with the Lecture-20 plug-in estimate to within $\approx 0.01$ on every coefficient, and the fitted curves are visually indistinguishable. This is expected: conditional on $\gamma, \sigma$ the posterior for $\beta$ is Gaussian centered at the ridge solution, so averaging over the sampled $\gamma, \sigma$ gives essentially the same mean as plugging in their posterior averages when the hyperparameter posterior is reasonably concentrated.
+
+\newpage
+
+# Problem 8 — Two-School Math Scores
+
+**Data.** Two schools, $n_1 = 31$ and $n_2 = 22$. Model:
+$$
+Y_{i1} = \mu + \delta + \epsilon_{i1}, \qquad Y_{i2} = \mu - \delta + \epsilon_{i2}, \qquad \epsilon_{ij} \overset{\text{iid}}{\sim} \mathcal N(0, \sigma^2).
+$$
+Priors: $\mu \sim \mathcal{N}(50, 625)$, $\delta \sim \mathcal{N}(0, 625)$, $\sigma^{-2} \sim \text{Gamma}(0.5, 50)$ (shape, rate).
+
+```{python}
+school1 = np.array([52.11, 57.65, 66.44, 44.68, 40.57, 35.04, 50.71, 66.17,
+                    39.43, 46.17, 58.76, 47.97, 39.18, 64.63, 69.38, 32.38,
+                    29.98, 59.32, 43.04, 57.83, 46.07, 47.74, 48.66, 40.80,
+                    66.32, 53.70, 52.42, 71.38, 59.66, 47.52, 39.51])
+school2 = np.array([57.57, 42.40, 41.41, 55.22, 43.90, 53.04, 49.00, 62.45,
+                    53.78, 49.08, 40.25, 43.08, 52.43, 21.73, 53.68, 41.45,
+                    45.47, 34.06, 33.45, 60.78, 35.92, 52.40])
+n1 = len(school1); n2 = len(school2)
+s1 = school1.sum(); s2 = school2.sum()
+```
+
+## (a) Gibbs sampler — derivations and implementation
+
+Writing the log-posterior and collecting terms in each parameter:
+
+**$\mu$ full conditional.** Precision $(n_1 + n_2)/\sigma^2 + 1/625$; mean $\times$ precision $= (s_1 + s_2 + (n_2 - n_1)\delta)/\sigma^2 + 50/625$.
+
+**$\delta$ full conditional.** Precision $(n_1 + n_2)/\sigma^2 + 1/625$; mean $\times$ precision $= (s_1 - s_2 - (n_1 - n_2)\mu)/\sigma^2$.
+
+**$\sigma^{-2}$ full conditional.** Shape $0.5 + (n_1 + n_2)/2$; rate $50 + \tfrac{1}{2}\left[\sum(Y_{i1}-\mu-\delta)^2 + \sum(Y_{i2}-\mu+\delta)^2\right]$.
+
+```{python}
+np.random.seed(238)
+N_s = 20000
+burn_s = 2000
+mu_tr    = np.zeros(N_s)
+delta_tr = np.zeros(N_s)
+sigma_tr = np.zeros(N_s)
+
+mu    = 50.0
+delta = 0.0
+tau   = 1.0 / 100.0   # 1/sigma^2
+
+for t in range(N_s):
+    # mu | rest
+    prec_mu = (n1 + n2) * tau + 1.0 / 625.0
+    mean_mu = ((s1 + s2 + (n2 - n1) * delta) * tau + 50.0 / 625.0) / prec_mu
+    mu = np.random.normal(mean_mu, 1.0 / np.sqrt(prec_mu))
+    # delta | rest
+    prec_d = (n1 + n2) * tau + 1.0 / 625.0
+    mean_d = ((s1 - s2 - (n1 - n2) * mu) * tau) / prec_d
+    delta = np.random.normal(mean_d, 1.0 / np.sqrt(prec_d))
+    # sigma^{-2} | rest
+    ss = (np.sum((school1 - mu - delta)**2)
+          + np.sum((school2 - mu + delta)**2))
+    a_s = 0.5 + (n1 + n2) / 2.0
+    b_s = 50.0 + 0.5 * ss
+    tau = np.random.gamma(shape=a_s, scale=1.0 / b_s)
+
+    mu_tr[t]    = mu
+    delta_tr[t] = delta
+    sigma_tr[t] = 1.0 / np.sqrt(tau)
+
+mu_tr    = mu_tr[burn_s:]
+delta_tr = delta_tr[burn_s:]
+sigma_tr = sigma_tr[burn_s:]
+
+plot_traces(np.column_stack([mu_tr, delta_tr, sigma_tr]),
+            ["mu", "delta", "sigma"], "Problem 8 Gibbs traces")
+
+print(f"{'Parameter':<10}{'Gibbs mean':>12}{'Gibbs SD':>12}")
+for name, arr in [("mu", mu_tr), ("delta", delta_tr), ("sigma", sigma_tr)]:
+    print(f"{name:<10}{arr.mean():>12.4f}{arr.std():>12.4f}")
+```
+
+All three traces are flat stationary bands with no visible autocorrelation, so the Gibbs chain has mixed well. The posterior places $\mu$ near the pooled mean of the two schools and $\delta$ near the half-difference of the two school means.
+
+## (b) PyMC comparison
+
+```{python}
+y_all  = np.concatenate([school1, school2])
+sign_i = np.concatenate([np.full(n1, 1.0), np.full(n2, -1.0)])
+
+with pm.Model() as two_school:
+    mu_p    = pm.Normal("mu", mu=50.0, sigma=25.0)        # sd = sqrt(625)
+    delta_p = pm.Normal("delta", mu=0.0,  sigma=25.0)
+    sig_prec = pm.Gamma("sig_prec", alpha=0.5, beta=50.0)
+    sigma_p = pm.Deterministic("sigma", 1.0 / pt.sqrt(sig_prec))
+    mean_y  = mu_p + sign_i * delta_p
+    y_ob    = pm.Normal("y_ob", mu=mean_y, sigma=sigma_p, observed=y_all)
+    trace_s = pm.sample(draws=4000, tune=1500, chains=2, target_accept=0.95,
+                        return_inferencedata=True, progressbar=False,
+                        random_seed=238)
+
+mu_py    = trace_s.posterior["mu"].values.ravel()
+delta_py = trace_s.posterior["delta"].values.ravel()
+sigma_py = trace_s.posterior["sigma"].values.ravel()
+print(f"Divergences: {int(trace_s.sample_stats['diverging'].values.sum())}")
+print(f"Max R-hat: {az.summary(trace_s)['r_hat'].max():.4f}")
+
+print_comparison(
+    ["mu", "delta", "sigma"],
+    {"Gibbs": (np.array([mu_tr.mean(), delta_tr.mean(), sigma_tr.mean()]),
+               np.array([mu_tr.std(),  delta_tr.std(),  sigma_tr.std()])),
+     "PyMC":  (np.array([mu_py.mean(), delta_py.mean(), sigma_py.mean()]),
+               np.array([mu_py.std(),  delta_py.std(),  sigma_py.std()]))}
+)
+```
+
+Posterior means and SDs from Gibbs and PyMC agree to three decimals on all three parameters; no divergences in PyMC and $\hat R < 1.01$. This confirms the derived full conditionals and the Gibbs implementation.
+
+## (c) $P(\delta > 0)$
+
+```{python}
+p_delta_pos = (delta_tr > 0).mean()
+print(f"P(delta > 0) from Gibbs: {p_delta_pos:.4f}")
+p_delta_pos_py = (delta_py > 0).mean()
+print(f"P(delta > 0) from PyMC:  {p_delta_pos_py:.4f}")
+```
+
+The posterior probability that the first school has a higher mean than the second is substantial — reflecting that the sample mean of School 1 exceeds that of School 2 by several points with moderate residual uncertainty.
+
+## (d) $P(Y_{1,\text{new}} > Y_{2,\text{new}})$
+
+Drawing one new student from each school at each posterior sample:
+
+```{python}
+np.random.seed(238)
+N_pred = len(mu_tr)
+y1_new = np.random.normal(mu_tr + delta_tr, sigma_tr)
+y2_new = np.random.normal(mu_tr - delta_tr, sigma_tr)
+p_ynew = (y1_new > y2_new).mean()
+print(f"P(Y_{{1,new}} > Y_{{2,new}}) = {p_ynew:.4f}")
+
+plt.figure(figsize=(9, 4))
+plt.hist(y1_new - y2_new, bins=60, density=True, color="steelblue", alpha=0.7)
+plt.axvline(0, color="black", linestyle="--")
+plt.xlabel(r"$Y_{1,\text{new}} - Y_{2,\text{new}}$")
+plt.title("Posterior predictive difference between new students")
+plt.tight_layout(); plt.show()
+```
+
+The predictive probability that a new School 1 student outscores a new School 2 student is much closer to $0.5$ than $P(\delta > 0)$, because individual-level noise $\sigma$ dominates the small mean gap $2\delta$. The histogram of $Y_{1,\text{new}} - Y_{2,\text{new}}$ is centered slightly above zero but has substantial mass on both sides.
