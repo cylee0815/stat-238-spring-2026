@@ -41,6 +41,16 @@ NOTEBOOKS_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 # 90s budget covers headroom on a fresh classical cache.
 # 120s headroom on top of the ~30s cold target keeps cold first-runs
 # from flaking the suite.
+# nb 06 fits a fresh Gaussian sampler on TLT (cold first run dominated
+# by ~4-6 minutes of Gibbs + 500-path rollout + 3 classical baselines x
+# 20 seeds on TLT). Warm reruns hit every cache and finish in <90s; the
+# 540s budget covers the cold first run.
+# nb 09's prior-sensitivity sweep adds two new Gaussian fits (nu_sigma in
+# {1.0, 4.0}) plus a re-fit at nu_sigma=0.1 under a generalized
+# prior-aware cache key, three sets of 500-path rollouts on the SPY test
+# window, a 2000-path convergence rollout on the original SPY trace, and
+# the tabular Q-baseline at n_bins in {2, 8}. Cold ~6-8 min; warm <90 s.
+# 720 s budget covers headroom on a fresh cache.
 BUDGETS: dict[str, int] = {
     "00_data.ipynb": 30,
     "01_features_and_targets.ipynb": 30,
@@ -48,6 +58,8 @@ BUDGETS: dict[str, int] = {
     "03_sampler_diagnostics.ipynb": 360,
     "04_thompson_and_posterior_q.ipynb": 120,
     "05_main_comparison.ipynb": 90,
+    "06_robustness.ipynb": 540,
+    "09_prior_sensitivity.ipynb": 720,
 }
 
 NOTEBOOKS = [NOTEBOOKS_DIR / name for name in BUDGETS]
