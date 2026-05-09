@@ -51,6 +51,9 @@ NOTEBOOKS_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 # window, a 2000-path convergence rollout on the original SPY trace, and
 # the tabular Q-baseline at n_bins in {2, 8}. Cold ~6-8 min; warm <90 s.
 # 720 s budget covers headroom on a fresh cache.
+# nb 07 holds the Gaussian SPY posterior fixed and runs two new 500-path
+# rollouts (resample_every in {1, 20}); the per-episode rollout is the
+# nb 04 cache. Cold ~30 s; warm <30 s. The 240 s budget is generous.
 BUDGETS: dict[str, int] = {
     "00_data.ipynb": 30,
     "01_features_and_targets.ipynb": 30,
@@ -59,6 +62,7 @@ BUDGETS: dict[str, int] = {
     "04_thompson_and_posterior_q.ipynb": 120,
     "05_main_comparison.ipynb": 90,
     "06_robustness.ipynb": 540,
+    "07_thompson_cadence.ipynb": 240,
     "09_prior_sensitivity.ipynb": 720,
 }
 
