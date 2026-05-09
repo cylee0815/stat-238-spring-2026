@@ -1,0 +1,31 @@
+name: stat238-bayes-rl
+
+channels:
+  - conda-forge
+  - nodefaults
+
+dependencies:
+  - python=3.11
+  - pip
+
+  # Numerical / data
+  - numpy>=1.26,<2.0   # <-- UPDATED: Restrict to NumPy 1.x
+  - scipy>=1.14,<1.15
+  - pandas>=2.2,<2.3
+  - pyarrow>=18,<19
+
+  # Plotting
+  - matplotlib>=3.9,<3.10
+
+  # Bayesian stack
+  - arviz>=0.20,<0.21
+  - pymc>=5.18,<5.19
+
+  # Notebook / dev
+  - jupyterlab>=4.3,<5
+  - nbconvert>=7.16,<8
+  - pytest>=8.3,<9
+
+  # pip-only: yfinance's conda-forge build lags upstream releases.
+  - pip:
+      - yfinance>=1.3.0,<2.0

@@ -1,0 +1,432 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{bm}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{mathtools}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  framerule=0.4pt,
+  rulecolor=\color{gray!50},
+  xleftmargin=0pt,
+  showstringspaces=false
+}
+
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Var}{\mathrm{Var}}
+\newcommand{\D}{\mathcal{D}}
+\newcommand{\N}{\mathcal{N}}
+\newcommand{\IG}{\mathrm{Inv\text{-}Gamma}}
+\newcommand{\IW}{\mathrm{Inv\text{-}Wishart}}
+
+\title{Hierarchical Bayesian Regression for \\
+Posterior-Driven Sequential Allocation: \\[0.3em]
+\large Bayesian Inference on Monte Carlo Action-Value Returns, \\
+with a Q-Learning Decision Rule as the Application \\[0.4em]
+\normalsize Revised Project Proposal --- STAT 238, Spring 2026}
+
+\author{Thomas Lee}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent We pose the problem of sequential capital allocation in a single-asset ETF environment as a \emph{Bayesian inference problem} on the conditional expected discounted return function $Q(s,a)$. The previous draft modeled the bootstrapped temporal-difference target as the observation; this is rejected here on the grounds that it is not a coherent generative model. We instead define each observation as a finite-horizon Monte Carlo return collected under a fixed behavior policy, yielding a true generative model that places the project squarely within the Gelman tradition of hierarchical Bayesian regression. The parameters of inference are regression coefficients $\bm{\beta}_a \in \R^p$ for each action $a$, together with a noise scale $\sigma^2$ (or, in the heavy-tailed extension, a degrees-of-freedom $\nu$). We place a hierarchical normal prior across actions to enforce partial pooling and we conduct posterior inference by Gibbs sampling. Reinforcement learning enters the project only at the decision-rule stage: actions are selected by Thompson sampling, $\tilde a_t = \arg\max_a x_{s_t}^\top \tilde{\bm{\beta}}_a$ with $\tilde{\bm{\beta}}_a \sim p(\bm{\beta}_a \mid \D)$. A non-Bayesian baseline ($\varepsilon$-greedy tabular Q-learning, plus a linear least-squares fitted-Q baseline) provides a fair point of comparison. All performance metrics are reported as posterior predictive distributions with credible intervals, never as point estimates.
+\end{abstract}
+
+\section{Motivation and Course Fit}
+
+A fixed-budget investor in a liquid equity ETF (e.g.\ SPY) must, at each trading day, decide between a short, flat, or long unit position. The decision is made under low signal-to-noise, transaction frictions, and structural non-stationarity. Three statistical questions, all classically Bayesian, arise:
+
+\begin{enumerate}[leftmargin=*]
+\item \textbf{How confident are we in the value of each action?} A point estimate of the expected discounted return $Q(s,a)$ is uninformative when the data per state-action cell is sparse; the posterior $p(Q(s,a)\mid\D)$ and its credible interval are decision-relevant.
+\item \textbf{How should we explore?} Classical $\varepsilon$-greedy uses a tuning parameter that is independent of how much we already know. Thompson sampling on the posterior provides exploration that adapts automatically.
+\item \textbf{How should we borrow strength?} The state space contains rare states (extreme volatility regimes) for which independent estimates are unstable. Hierarchical priors across actions and across state features are precisely the tool Bayesian statistics provides for this.
+\end{enumerate}
+
+This proposal therefore frames the project as item~1 in the syllabus (\emph{Applications of Bayesian Inference}). The model class is hierarchical Bayesian regression --- a topic with deep coverage in Gelman et al.\ (2013, Ch.\ 5) --- and the application is sequential decision-making. The key intellectual move, in response to graduate-level critique of the previous draft, is to abandon the temporal-difference (TD) bootstrapped likelihood used by Dearden, Friedman \& Russell (1998) in favor of an honest finite-horizon Monte Carlo (MC) likelihood. This eliminates the bootstrapping bias and yields a generative model in the strict probabilistic sense.
+
+\section{Mathematical Formulation}
+
+\subsection{Environment and Controlled Markov Approximation}
+\label{sec:mdp}
+
+We work with a finite-horizon discrete-time decision process $\mathcal{M} = (\mathcal{S}, \mathcal{A}, P, R, \gamma, H)$:
+\begin{itemize}[leftmargin=*]
+\item State $s_t \in \mathcal{S}$ summarized by a feature vector $x_{s_t} \in \R^p$ constructed from the asset's price history (Section~\ref{sec:dataset}). All features are computed under \emph{strict causality}: at time $t$, only information $\{P_\tau\}_{\tau \leq t}$ may enter $x_{s_t}$, and all rolling normalizations are causal.
+\item Action $a_t \in \mathcal{A} = \{-1, 0, +1\}$ (short, flat, long).
+\item Reward $R_t$ defined in Section~\ref{sec:dataset}.
+\item Discount $\gamma = 0.95$, MC horizon $H \in \{20, 60\}$ trading days.
+\end{itemize}
+
+\paragraph{Controlled Markov approximation (made explicit).} Real markets are non-stationary and the chosen feature vector $x_s$ is not a sufficient statistic for the future return distribution. We adopt the controlled approximation
+\begin{equation}
+\label{eq:controlled-markov}
+P(s_{t+1} \mid s_t, a_t) \approx P(s_{t+1} \mid s_t),
+\end{equation}
+i.e.\ the agent's small-scale position does not move the market. This is the \emph{price-taker} assumption and is standard for retail-scale single-asset ETF backtesting; the action $a_t$ enters only through the immediate reward (next-day signed return minus transaction cost), not through the state transition. We will state this explicitly in the methods, treat it as an idealization, and assess its effects through residual diagnostics in Section~\ref{sec:eval}.
+
+\subsection{The Inferential Object: $Q^\pi$}
+For a fixed behavior policy $\pi_b$ (Section~\ref{sec:behavior}), define
+\[
+Q^{\pi_b}(s, a) \;=\; \E_{\pi_b}\!\left[\sum_{k=0}^{H} \gamma^k R_{t+k} \,\Big|\, s_t = s,\; a_t = a\right].
+\]
+This is the parameter we wish to estimate Bayesian-ly. Note that we estimate $Q^{\pi_b}$ rather than $Q^\star$; this is in keeping with off-policy evaluation in a single-batch setting and is honest about the data we actually observe. The optimal policy will then be approached by iterating policy-improvement steps via Thompson sampling (Section~\ref{sec:algorithm}).
+
+\subsection{Generative Model: Bayesian Regression on MC Returns}
+\label{sec:genmodel}
+
+\paragraph{Observation.} For each visited transition starting at time $t$ with $(s_t, a_t) = (s, a)$, we form the truncated Monte Carlo return
+\begin{equation}
+\label{eq:mc-return}
+\boxed{\; y_t \;=\; \sum_{k=0}^{H} \gamma^k R_{t+k}. \;}
+\end{equation}
+This is a real number, computed directly from the data after the trajectory has unrolled --- crucially, no bootstrapping, no plug-in for downstream Q-values, no Bellman-target bias. The dataset is
+\[
+\D \;=\; \big\{(x_{s_t}, a_t, y_t)\big\}_{t=1}^{n}.
+\]
+
+\paragraph{Likelihood (Gaussian).} We assume
+\begin{equation}
+\label{eq:likelihood-gaussian}
+y_t \;\big|\; x_{s_t},\, a_t = a,\, \bm{\beta}_a,\, \sigma^2 \;\sim\; \N\!\big(x_{s_t}^\top \bm{\beta}_a,\; \sigma^2\big),
+\quad \text{independently across } t.
+\end{equation}
+That is, conditional on the state's feature vector and the chosen action, the MC return is a linear regression of $y$ on $x_s$ with a per-action coefficient vector $\bm{\beta}_a \in \R^p$ and homoscedastic noise. The implied estimate of the action-value function is
+\[
+\widehat{Q}(s,a) \;=\; \E[y_t \mid x_s, a] \;=\; x_s^\top \bm{\beta}_a.
+\]
+This linear-in-features structure is what enables both partial pooling (via the prior on $\{\bm{\beta}_a\}$) and tractable, conjugate posterior inference.
+
+\paragraph{Likelihood (Student-$t$, robust extension).} Daily ETF returns exhibit well-documented heavy tails (excess kurtosis even after centring), so the Gaussian assumption~\eqref{eq:likelihood-gaussian} is suspect. We will run the full inference twice, with the heavy-tailed alternative
+\begin{equation}
+\label{eq:likelihood-t}
+y_t \;\big|\; x_{s_t},\, a_t,\, \bm{\beta}_a,\, \sigma^2,\, \nu \;\sim\; \mathrm{Student\text{-}}t_\nu\!\big(x_{s_t}^\top \bm{\beta}_a,\; \sigma^2\big),
+\end{equation}
+implemented in the standard scale-mixture form
+\[
+y_t \,\big|\, \lambda_t,\dots \sim \N\!\big(x_{s_t}^\top \bm{\beta}_a,\, \sigma^2/\lambda_t\big),
+\qquad
+\lambda_t \sim \mathrm{Gamma}\!\big(\nu/2,\, \nu/2\big),
+\]
+which preserves conditional conjugacy and makes Gibbs sampling immediate.
+
+\paragraph{Justifying or rejecting the Gaussian assumption.} We will run two diagnostics in the notebook:
+\begin{enumerate}[label=(\roman*),leftmargin=*]
+\item \emph{Aggregation argument.} Each $y_t$ is a $\gamma$-weighted sum of $H+1$ daily returns; for $H=60$ trading days, by a Lyapunov-style CLT applied to weakly dependent returns, $y_t$ should be substantially closer to Gaussian than the one-day return is. The $\gamma$-weighting strengthens this since the weights are not too unequal.
+\item \emph{Residual diagnostics.} We will plot QQ-plots and compute Anderson--Darling statistics on $y_t - x_{s_t}^\top \widehat{\bm{\beta}}_a$ for each action, conditional on the posterior mean. If the Gaussian fit is acceptable we report only model~\eqref{eq:likelihood-gaussian}; if not, we use~\eqref{eq:likelihood-t} as the headline result and treat the Gaussian as a sensitivity case.
+\end{enumerate}
+
+\subsection{Hierarchical Prior: Partial Pooling Across Actions}
+\label{sec:prior}
+
+A naive choice would place independent priors on each $\bm{\beta}_a$. This is rejected: it precludes borrowing of strength, and is precisely the failure mode flagged in the rigorous critique of the previous draft. We instead place a multivariate-normal hierarchical prior:
+\begin{align}
+\bm{\beta}_a \mid \bm{\mu}_\beta, \bm{\Sigma}_\beta &\;\sim\; \N\!\big(\bm{\mu}_\beta,\; \bm{\Sigma}_\beta\big), \quad a \in \mathcal{A}, \label{eq:prior-beta}\\
+\bm{\mu}_\beta &\;\sim\; \N\!\big(\bm 0,\; \tau_0^2\, I_p\big), \\
+\bm{\Sigma}_\beta &\;\sim\; \IW\!\big(\nu_0, \bm\Lambda_0\big), \\
+\sigma^2 &\;\sim\; \IG\!\big(a_0,\, b_0\big).
+\end{align}
+With three actions, the hierarchy yields meaningful shrinkage of action-specific coefficients toward the cross-action mean $\bm{\mu}_\beta$, which is itself learned from data --- the textbook Gelman partial-pooling story.
+
+\paragraph{Hyperparameter choices (weakly informative).} $\tau_0 = 5\,\hat\sigma_y$, $\nu_0 = p+2$, $\bm\Lambda_0 = \hat\sigma_y^2\, I_p$, $a_0 = 2$, $b_0 = \hat\sigma_y^2$, where $\hat\sigma_y^2$ is computed on the pre-training window (1993) and never updated thereafter --- preventing data-driven prior leakage. We will report a sensitivity analysis varying these by an order of magnitude.
+
+\subsection{Posterior and Conditional Conjugacy}
+\label{sec:posterior}
+
+The full posterior is
+\begin{equation}
+\label{eq:posterior}
+p\!\big(\{\bm\beta_a\}, \bm\mu_\beta, \bm\Sigma_\beta, \sigma^2 \mid \D\big) \;\propto\; \prod_{t=1}^n \N\!\big(y_t \mid x_{s_t}^\top \bm\beta_{a_t}, \sigma^2\big) \cdot \prod_{a\in\mathcal{A}} \N(\bm\beta_a \mid \bm\mu_\beta, \bm\Sigma_\beta) \cdot \pi(\bm\mu_\beta)\,\pi(\bm\Sigma_\beta)\,\pi(\sigma^2).
+\end{equation}
+Every full conditional is conjugate, giving an exact Gibbs sampler. Let $\D_a = \{(x_{s_t}, y_t) : a_t = a\}$, with stacked $X_a \in \R^{n_a \times p}$ and $\bm y_a \in \R^{n_a}$. Then:
+
+\paragraph{Conditional posterior of $\bm\beta_a$.} Combining the Gaussian likelihood with~\eqref{eq:prior-beta},
+\begin{equation}
+\label{eq:full-cond-beta}
+\bm\beta_a \mid \cdot \;\sim\; \N\!\big(\bm m_a, V_a\big), \qquad
+V_a^{-1} = \sigma^{-2}\, X_a^\top X_a + \bm\Sigma_\beta^{-1}, \qquad
+\bm m_a = V_a\big(\sigma^{-2} X_a^\top \bm y_a + \bm\Sigma_\beta^{-1} \bm\mu_\beta\big).
+\end{equation}
+
+\paragraph{Conditional posterior of $\bm\mu_\beta$.}
+\begin{equation}
+\bm\mu_\beta \mid \cdot \;\sim\; \N\!\big(\bm m_\mu, V_\mu\big), \qquad
+V_\mu^{-1} = |\mathcal{A}|\,\bm\Sigma_\beta^{-1} + \tau_0^{-2} I_p, \qquad
+\bm m_\mu = V_\mu \bm\Sigma_\beta^{-1} \!\!\sum_{a\in\mathcal{A}} \bm\beta_a.
+\end{equation}
+
+\paragraph{Conditional posterior of $\bm\Sigma_\beta$.}
+\begin{equation}
+\bm\Sigma_\beta \mid \cdot \;\sim\; \IW\!\bigg(\nu_0 + |\mathcal{A}|,\; \bm\Lambda_0 + \!\!\sum_{a\in\mathcal{A}}(\bm\beta_a - \bm\mu_\beta)(\bm\beta_a - \bm\mu_\beta)^\top \bigg).
+\end{equation}
+
+\paragraph{Conditional posterior of $\sigma^2$.}
+\begin{equation}
+\sigma^2 \mid \cdot \;\sim\; \IG\!\bigg(a_0 + \tfrac{n}{2},\; b_0 + \tfrac{1}{2}\sum_t (y_t - x_{s_t}^\top \bm\beta_{a_t})^2\bigg).
+\end{equation}
+
+\paragraph{Student-$t$ extension.} Equation~\eqref{eq:likelihood-t} adds per-observation latent scales $\lambda_t$ with full conditional $\lambda_t \mid \cdot \sim \mathrm{Gamma}\!\big(\tfrac{\nu+1}{2},\; \tfrac{\nu}{2} + \tfrac{(y_t - x_{s_t}^\top\bm\beta_{a_t})^2}{2\sigma^2}\big)$, and $\nu$ is updated by a Metropolis-within-Gibbs step on a log-scale.
+
+\medskip
+This is now precisely a hierarchical Bayesian regression: parameters $\theta = (\{\bm\beta_a\}, \bm\mu_\beta, \bm\Sigma_\beta, \sigma^2)$, observations $\D$, posterior in~\eqref{eq:posterior}, sampled exactly by Gibbs. RL has not yet entered the formulation.
+
+\subsection{Decision Rule: Thompson Sampling}
+\label{sec:thompson}
+
+Reinforcement learning enters the problem only here, and only as the rule that converts the posterior into actions. At deployment time $t$, having observed $s_t$ with feature vector $x_{s_t}$, the agent draws one joint sample
+\[
+\tilde\theta = (\tilde{\bm\beta}_{-1}, \tilde{\bm\beta}_0, \tilde{\bm\beta}_{+1}, \dots) \;\sim\; p(\theta \mid \D)
+\]
+from the current posterior and selects
+\begin{equation}
+\label{eq:thompson}
+a_t \;=\; \arg\max_{a \in \mathcal{A}} \, x_{s_t}^\top \tilde{\bm\beta}_a.
+\end{equation}
+This is Thompson sampling on a Bayesian linear contextual bandit, generalized to multi-step returns through the MC-truncation. Greedy deployment uses $\arg\max_a x_{s_t}^\top \E[\bm\beta_a \mid \D]$.
+
+\section{behavior Policy and Iterative Policy Improvement}
+\label{sec:behavior}
+
+Because the MC return depends on the policy that generates the future trajectory, the inferential target is $Q^{\pi_b}$, not $Q^\star$. We address this with a fitted-Q-iteration-style outer loop:
+\begin{enumerate}[leftmargin=*]
+\item Initialise $\pi_b^{(0)}$ as uniform random over $\mathcal{A}$ (gives an unbiased Monte Carlo estimate of $Q^{\pi_b^{(0)}}$ from any data).
+\item Collect MC returns $\{y_t\}$ on the training data under $\pi_b^{(j)}$.
+\item Run Gibbs sampling to obtain the posterior $p(\theta \mid \D^{(j)})$.
+\item Define $\pi_b^{(j+1)}$ by Thompson sampling against the posterior~\eqref{eq:thompson}.
+\item Resample MC returns for the next iteration; repeat for $J = 5$ outer iterations.
+\end{enumerate}
+This is a finite, stable, and statistically interpretable scheme: each outer iteration is a complete Bayesian inference, and the convergence behavior of the action distribution is itself a quantity we will track and plot.
+
+\newpage
+
+\section{Algorithms}
+
+\subsection*{Algorithm A: Classical $\varepsilon$-Greedy Tabular Q-Learning (Baseline)}
+
+\begin{lstlisting}
+Initialize Q(s,a) = 0 for all (s,a)
+For each training pass over the train data:
+  For t = 0, 1, ..., T-1:
+    With prob 1 - eps_t: a_t = argmax_a Q(s_t, a); else uniform
+    Observe r_t (with vol-dependent transaction cost), s_{t+1}
+    Q(s_t, a_t) <- (1 - alpha_t) * Q(s_t, a_t)
+                 + alpha_t * [r_t + gamma * max_a Q(s_{t+1}, a)]
+  Decay eps_t and alpha_t (grid-tuned schedules).
+\end{lstlisting}
+
+\subsection*{Algorithm B: Hierarchical Bayesian Regression + Thompson Sampling (Proposed)}
+
+\begin{lstlisting}
+1. behavior policy outer loop, j = 0, 1, ..., J:
+   a. Generate dataset D^(j):
+      For each (s_t, a_t) where a_t ~ pi_b^(j)(. | s_t),
+      compute MC return y_t = sum_{k=0}^H gamma^k R_{t+k}.
+   b. Run Gibbs sampler for M iterations, B burn-in:
+        for m = 1..M:
+          for each action a:
+            sample beta_a from N(m_a, V_a)         # eq. (full-cond-beta)
+          sample mu_beta from its full conditional
+          sample Sigma_beta from inverse-Wishart
+          sample sigma^2 from inverse-gamma
+          (Student-t branch: also sample lambda_t and nu)
+   c. Update behavior policy:
+        pi_b^(j+1)(a | s) = (1/M) * sum_m  1{ argmax_a' x_s^T beta_a^(m) = a }
+2. Deployment on test set:
+   For t = 1, ..., T_test:
+     draw one posterior sample beta_a^(m); compute Q-tilde = x_s^T beta_a
+     a_t = argmax_a Q-tilde(s_t, a)            # Thompson sampling
+3. Posterior predictive evaluation: Section 6.
+\end{lstlisting}
+
+\newpage
+
+\section{Dataset, Features, Reward}
+\label{sec:dataset}
+
+\paragraph{Dataset.} Daily adjusted-close prices for SPY (SPDR S\&P 500 ETF) from 1994-01-01 through 2026-04-30 ($\approx 8{,}140$ trading days), retrieved from Yahoo Finance via \texttt{yfinance}. A second asset, TLT (long-dated Treasury ETF), is reserved for an out-of-domain robustness check.
+
+\paragraph{Splits.}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Pre-training window} (1993): used \emph{only} to set hyperparameters $\hat\sigma_y$ in the prior. Never touched again.
+\item \textbf{Training window} (1994-01--2019-12): $\sim 6{,}540$ days, used for posterior inference and policy iteration.
+\item \textbf{Test window} (2020-01--2026-04): $\sim 1{,}580$ days, used for out-of-sample posterior predictive evaluation. Contains COVID-19 crash, 2022 bear market, and 2024--26 regime --- a deliberately stress-rich period.
+\end{itemize}
+
+\paragraph{State features (continuous, then optionally discretized).} All features are computed using only past data and a strictly causal $W$-day rolling window:
+\begin{itemize}[leftmargin=*]
+\item $x_1$: 5-day momentum, $z$-scored over a trailing 252-day window: $(\sum_{i=1}^5 r_{t-i} - \mu_t^{(252)}) / \sigma_t^{(252)}$.
+\item $x_2$: log of the 20-day rolling realized volatility, mean-centred over a trailing 252-day window.
+\item $x_3$: $(P_t - \mathrm{MA}_{200,t})/\mathrm{MA}_{200,t}$, where $\mathrm{MA}_{200,t}$ is the trailing 200-day moving average.
+\item $x_4 = 1$ (intercept).
+\end{itemize}
+The feature vector $x_s = (x_1, x_2, x_3, 1)^\top \in \R^4$. Rolling normalization eliminates look-ahead bias.
+
+\paragraph{Volatility-dependent transaction cost.} A constant transaction cost is unrealistic --- spreads widen when volatility is high. We use
+\begin{equation}
+\label{eq:cost}
+c_t \;=\; c_0 + \lambda \cdot \hat\sigma_t^{(20)},
+\end{equation}
+with $c_0 = 5\text{ bps}$, $\lambda = 0.5$, and $\hat\sigma_t^{(20)}$ the 20-day rolling daily volatility (in fractional units). This penalises trading more in turbulent markets, which is empirically defensible and which materially differentiates the two agents.
+
+\paragraph{Reward.}
+\begin{equation}
+R_t \;=\; a_t \cdot r_{t+1} \;-\; c_t \,\big|a_t - a_{t-1}\big|, \qquad r_{t+1} = \log(P_{t+1}/P_t).
+\end{equation}
+
+\newpage
+
+\section{Evaluation Framework: Posterior Predictive Throughout}
+\label{sec:eval}
+
+The headline principle: \textbf{no point-estimate metrics, ever.} Every reported quantity --- Sharpe ratio, max drawdown, cumulative return, action frequency --- is reported as a posterior distribution under the Bayesian agent and as a bootstrap distribution (over training seeds) under the classical baseline.
+
+\subsection{Posterior Predictive Replications of Trading Performance}
+
+For each posterior draw $\theta^{(m)} \sim p(\theta \mid \D)$, $m = 1,\dots,M$:
+\begin{enumerate}[leftmargin=*]
+\item Use $\theta^{(m)}$ to produce a deterministic deployment policy $\pi^{(m)}(s) = \arg\max_a x_s^\top \bm\beta_a^{(m)}$.
+\item Roll $\pi^{(m)}$ forward on the test set, generating actions $\{a_t^{(m)}\}$ and resulting rewards $\{R_t^{(m)}\}$.
+\item Compute the path-level statistics:
+\begin{align*}
+\text{CumRet}^{(m)} &= \sum_t R_t^{(m)}, \\
+\text{Sharpe}^{(m)} &= \sqrt{252} \cdot \frac{\bar R^{(m)}}{\hat\sigma_R^{(m)}}, \\
+\text{MDD}^{(m)} &= \max_t\,\Big(\max_{s\le t} W_s^{(m)} - W_t^{(m)}\Big)\Big/\max_{s\le t} W_s^{(m)}, \\
+\text{Turnover}^{(m)} &= \frac{1}{T}\sum_t \big|a_t^{(m)} - a_{t-1}^{(m)}\big|.
+\end{align*}
+\end{enumerate}
+We then report posterior summaries (mean, 95\% credible intervals) and full histograms.
+
+\subsection{Posterior Predictive Calibration}
+For each test-set observation $(x_{s_t}, a_t, y_t)$, draw replications $y_t^{(m)} \sim \N(x_{s_t}^\top \bm\beta_{a_t}^{(m)}, \sigma^{2,(m)})$ from the posterior predictive. Compute the empirical 95\% predictive coverage:
+\[
+\text{Cov}_{95} \;=\; \frac{1}{n_{\text{test}}}\sum_t \mathbf{1}\{y_t \in [q_{2.5}^{(m)}, q_{97.5}^{(m)}]\}.
+\]
+A well-calibrated model gives $\text{Cov}_{95} \approx 0.95$. Substantial under-coverage is the signal that triggers the Student-$t$ extension.
+
+\subsection{Pseudo-Regret vs Best Fixed Action}
+\label{sec:pseudoregret}
+
+The notion of regret against a $Q^\star$-aware oracle is ill-defined in real markets and has been removed. We instead report \emph{pseudo-regret against the best fixed action in hindsight}:
+\begin{equation}
+\rho_T \;=\; \max_{a\in\mathcal{A}}\sum_{t=1}^T R_t(a) \;-\; \sum_{t=1}^T R_t(a_t),
+\end{equation}
+where $R_t(a)$ is the reward that \emph{would have been} obtained from constantly playing $a$. This is the standard expert-advice benchmark of Cesa-Bianchi \& Lugosi (2006) and is well-defined from observed data alone.
+
+\subsection{Posterior Diagnostics on the Inference Itself}
+\begin{itemize}[leftmargin=*]
+\item Trace plots of $\bm\beta_a$ chains; Gelman--Rubin $\hat R$ from 4 chains.
+\item Effective sample size for each parameter.
+\item Posterior contraction: $\Var[x_s^\top \bm\beta_a \mid \D]$ as a function of $n_a$ for representative states $x_s$.
+\item Residual diagnostics: QQ-plots and histograms of standardized residuals to assess Gaussian vs Student-$t$ fit.
+\end{itemize}
+
+\section{Comparison Strategy: What Is Compared, and Why It Is Fair}
+
+\paragraph{Compared.} Three agents on the identical data and identical reward model:
+\begin{itemize}[leftmargin=*]
+\item \textbf{(C1)} Classical tabular $\varepsilon$-greedy Q-learning, with $\varepsilon_t$ and learning rate $\alpha_t$ schedules grid-searched on the training set.
+\item \textbf{(C2)} Frequentist least-squares fitted-Q with the same linear features as the Bayesian model, and $\varepsilon$-greedy exploration --- isolates the contribution of the prior/posterior machinery from the contribution of linear features.
+\item \textbf{(B)} Hierarchical Bayesian regression with Thompson sampling, as described in this proposal.
+\end{itemize}
+The two-baseline design is important: C2 disentangles the linear-features effect from the Bayesian-machinery effect, which a single-baseline design would conflate.
+
+\paragraph{Fairness controls.}
+\begin{itemize}[leftmargin=*]
+\item Identical state features (continuous for B, C2; same features then discretized for C1).
+\item Identical reward model and identical $\gamma$.
+\item Identical training/test split. No data leakage from test set into prior elicitation.
+\item Classical baselines tuned on training data; Bayesian agent uses fixed weakly-informative hyperparameters with no tuning. Any win for the Bayesian agent is therefore conservative.
+\item All randomness controlled by 30 seeds; reported metrics are mean $\pm$ 95\% bootstrap CI for C1, C2 and mean $\pm$ 95\% credible interval for B.
+\end{itemize}
+
+\paragraph{Hypotheses.}
+\begin{enumerate}[leftmargin=*]
+\item Coverage of 95\% predictive intervals on test data is closer to nominal under B (especially in the Student-$t$ branch) than under either C1 or C2, which provide no calibrated uncertainty.
+\item Posterior credible intervals for Sharpe ratio under B will be narrower than the seed-bootstrap CIs of C1, reflecting variance reduction from the prior.
+\item In high-volatility states (a small fraction of the data), B selects the flat action $a=0$ more often than C1 because the wide posterior on the long/short Q-values tilts Thompson sampling away from extreme actions. This is the operationalization of risk aversion.
+\end{enumerate}
+
+\section{Notebook Structure}
+
+\begin{lstlisting}
+0. Setup
+   - Imports, RNG seeds, data download via yfinance
+1. Data Loading & Feature Engineering
+   - Adjusted prices, log-returns, causal rolling features
+   - Pre-train window for prior hyperparameter calibration
+2. Environment & Reward
+   - vol-dependent transaction cost (eq. 12)
+   - reward function unit-tested on a small slice
+3. Construction of MC-return targets
+   - For each (s_t, a_t) in D, compute y_t with horizon H
+   - Visualise distribution of y_t per action
+4. Classical Baselines (C1, C2)
+   - Tabular Q-learning with epsilon-greedy
+   - Frequentist linear FQI with epsilon-greedy
+   - Hyperparameter grid on training set
+5. Bayesian Hierarchical Regression
+   - Conjugate Gibbs sampler implementation
+   - Sanity check on synthetic data: recover known beta_a
+   - Convergence diagnostics: traces, R-hat, ESS
+6. Robustness: Student-t Likelihood Branch
+   - Scale-mixture Gibbs sampler
+   - QQ-plot diagnostics deciding which branch to feature
+7. behavior-Policy Iteration (J = 5 outer rounds)
+   - Track action-distribution convergence
+8. Posterior Predictive Evaluation on Test Set
+   - Sharpe, MDD, turnover: full posterior distributions
+   - Equity-curve credible ribbons
+   - 95% predictive coverage check
+9. Pseudo-Regret Analysis
+   - Cumulative pseudo-regret vs best fixed action
+10. Sensitivity Analysis
+    - Vary tau_0, nu_0, b_0; vary H in {20, 60, 120}
+    - Vary discretization granularity (for C1 only)
+11. Discussion: Limitations and Honest Caveats
+\end{lstlisting}
+
+\section{Visualization Plan}
+
+\begin{enumerate}[leftmargin=*]
+\item Posterior densities of selected coefficients $\bm\beta_a$ at each behavior-iteration round, illustrating contraction.
+\item Action-frequency heatmap $\Pr(a \mid s)$ for B and for C1, showing how the Bayesian policy is softer on extreme actions in tail states.
+\item Equity-curve credible ribbon: 95\% interval of cumulative return on the test set, generated from $M$ posterior draws.
+\item Posterior histograms of (Sharpe, MDD, Turnover), with C1 and C2 bootstrap distributions overlaid.
+\item Cumulative pseudo-regret of all three agents.
+\item Calibration plot: nominal vs empirical predictive coverage at levels $\{0.5, 0.8, 0.9, 0.95, 0.99\}$.
+\item QQ-plot and density plot of standardized MC-return residuals, motivating Gaussian vs Student-$t$ choice.
+\item Posterior contraction curve $\Var[x_s^\top \bm\beta_a \mid \D]$ vs $n$, with a $1/n$ reference line.
+\end{enumerate}
+
+\section{Risks and Honest Limitations}
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{MC truncation bias.} The $H$-step truncated MC return underestimates $Q^{\pi_b}$ by $O(\gamma^{H+1})$. With $\gamma=0.95, H=60$ this is below 5\% and is reported, not hidden.
+\item \textbf{Off-policy gap.} We estimate $Q^{\pi_b}$ rather than $Q^\star$; the policy-iteration outer loop narrows this gap but does not close it. We track $\pi_b$ convergence empirically.
+\item \textbf{Stationarity.} Equation~\eqref{eq:controlled-markov} and the constancy of $\bm\beta_a$ over the training window are both idealizations. We do not claim live-trading validity. The COVID portion of the test set is included precisely as a stress test.
+\item \textbf{Linearity.} The linear-in-$x_s$ specification is the simplest interpretable choice; non-linear extensions (Gaussian-process priors on $Q$, or basis expansions of $x_s$) are a natural follow-up but not the focus of a course-scope project.
+\end{itemize}
+
+\section*{References}
+
+\begin{itemize}[leftmargin=*,itemsep=0.1em]
+\item Gelman, Carlin, Stern, Dunson, Vehtari \& Rubin (2013). \emph{Bayesian Data Analysis}, 3rd ed. (Chs.\ 5, 14, 17.)
+\item Hoff (2009). \emph{A First Course in Bayesian Statistical Methods.} (Ch.\ 9 on hierarchical regression.)
+\item Dearden, Friedman \& Russell (1998). Bayesian Q-learning. AAAI. (Provides the model class we modify.)
+\item Sutton \& Barto (2018). \emph{Reinforcement Learning: An Introduction}, 2nd ed. (For the classical baseline.)
+\item Strens (2000). A Bayesian Framework for Reinforcement Learning. ICML. (Original posterior-sampling RL.)
+\item Russo, Van Roy, Kazerouni, Osband \& Wen (2018). A Tutorial on Thompson Sampling. \emph{Foundations and Trends in ML.}
+\item Cesa-Bianchi \& Lugosi (2006). \emph{Prediction, Learning, and Games.} (Pseudo-regret framework.)
+\end{itemize}
+
+\end{document}

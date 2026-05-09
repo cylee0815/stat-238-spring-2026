@@ -1,0 +1,43 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/
+dist/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Project artifacts (regeneratable)
+data/raw/
+data/processed/
+results/
+figures/*.pdf
+figures/*.png
+
+# Always keep directory placeholders
+!.gitkeep
+
+# LaTeX intermediate files
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
