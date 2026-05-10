@@ -13,15 +13,9 @@ exists for the sensitivity sweep in notebook 09.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
-
-from project.utils import PROCESSED_DIR
-
-SIGMA_Y_PRETRAIN_PATH: Path = PROCESSED_DIR / "sigma_y_pretrain.json"
 
 
 @dataclass(frozen=True)
@@ -55,19 +49,6 @@ class StudentTPriors(GaussianPriors):
     """``GaussianPriors`` plus an Exponential prior on the t degrees of freedom."""
 
     nu_rate: float = 0.1       # nu ~ Exponential(0.1) -> E[nu] = 10
-
-
-def load_sigma_y_hat(path: Path | None = None) -> float:
-    """Load ``sigma_y_hat`` from the pretraining artifact written by notebook 02."""
-    p = path or SIGMA_Y_PRETRAIN_PATH
-    if not p.exists():
-        raise FileNotFoundError(
-            f"sigma_y_pretrain.json not found at {p}. "
-            "Run notebooks/02_environment.ipynb to generate it."
-        )
-    with p.open() as f:
-        record = json.load(f)
-    return float(record["sigma_y_hat"])
 
 
 def make_priors(

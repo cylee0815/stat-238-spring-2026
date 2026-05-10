@@ -29,8 +29,8 @@ pip install -r requirements.txt
 ## Reproduce all figures
 
 ```bash
-# 1. Download and cache raw price data
-python -m project.data --download
+# 1. Download and cache raw price data (SPY, TLT, ^GSPC pre-train window)
+python -c "from project import data; data.load_spy(); data.load_tlt(); data.load_pretrain()"
 
 # 2. Run notebooks 00 -> 10 in order, top-to-bottom
 for nb in notebooks/*.ipynb; do
