@@ -60,6 +60,10 @@ NOTEBOOKS_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 # runtime is dominated by the per-path metric computations on the
 # cached posterior bundles and lands in <30 s; the 60 s budget gives
 # headroom on a CI runner with cold caches assumed populated.
+# nb 10 is the conclusions notebook: pure prose, four markdown sections,
+# no code cells. It exists for the reviewer who wants the project's
+# headline without reading nb 08's full discussion. The 30 s budget
+# covers nbclient overhead on a cold kernel start.
 BUDGETS: dict[str, int] = {
     "00_data.ipynb": 30,
     "01_features_and_targets.ipynb": 30,
@@ -71,6 +75,7 @@ BUDGETS: dict[str, int] = {
     "07_thompson_cadence.ipynb": 240,
     "08_discussion.ipynb": 60,
     "09_prior_sensitivity.ipynb": 720,
+    "10_conclusions.ipynb": 30,
 }
 
 NOTEBOOKS = [NOTEBOOKS_DIR / name for name in BUDGETS]
