@@ -54,6 +54,12 @@ NOTEBOOKS_DIR = Path(__file__).resolve().parents[1] / "notebooks"
 # nb 07 holds the Gaussian SPY posterior fixed and runs two new 500-path
 # rollouts (resample_every in {1, 20}); the per-episode rollout is the
 # nb 04 cache. Cold ~30 s; warm <30 s. The 240 s budget is generous.
+# nb 08 is a prose-driven discussion notebook: three figures rendered
+# from cached artefacts (nb 03 trace, nb 05 paths/classical bundles,
+# nb 09 prior-sweep paths). No sampler fits, no fresh rollouts. Warm
+# runtime is dominated by the per-path metric computations on the
+# cached posterior bundles and lands in <30 s; the 60 s budget gives
+# headroom on a CI runner with cold caches assumed populated.
 BUDGETS: dict[str, int] = {
     "00_data.ipynb": 30,
     "01_features_and_targets.ipynb": 30,
@@ -63,6 +69,7 @@ BUDGETS: dict[str, int] = {
     "05_main_comparison.ipynb": 90,
     "06_robustness.ipynb": 540,
     "07_thompson_cadence.ipynb": 240,
+    "08_discussion.ipynb": 60,
     "09_prior_sensitivity.ipynb": 720,
 }
 
