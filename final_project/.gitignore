@@ -28,6 +28,9 @@ results/
 figures/*.pdf
 figures/*.png
 
+# MyST site build output
+_build/
+
 # Always keep directory placeholders
 !.gitkeep
 
@@ -41,3 +44,5 @@ figures/*.png
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+*.nav
+*.snm

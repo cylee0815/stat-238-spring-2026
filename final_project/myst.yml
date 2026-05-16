@@ -1,0 +1,40 @@
+# MyST site config. The published website renders the COMMITTED notebook
+# outputs (notebooks 00–10) — it does NOT re-execute them, so the site
+# never needs network access (yfinance) or the long MCMC runs. The
+# "run it yourself" reproducibility path is the Binder launch button.
+#
+# Build:   myst build --html      (executed in CI, see .github/workflows)
+version: 1
+
+project:
+  title: Hierarchical Bayesian Regression for Sequential ETF Allocation
+  description: >-
+    STAT 238 (Bayesian Statistics, UC Berkeley, Spring 2026) final project —
+    a hierarchical Bayesian Gibbs sampler driving Thompson-sampling ETF
+    allocation, with full sampler diagnostics and a reproducible pipeline.
+  authors:
+    - name: Thomas Lee
+  github: https://github.com/cylee0815/stat-238-spring-2026
+  # Launch any page into a live Binder kernel.
+  binder: https://mybinder.org/v2/gh/cylee0815/stat-238-spring-2026/main
+  # Render stored outputs only; never auto-execute on build.
+  toc:
+    - file: README.md
+    - title: Analysis notebooks
+      children:
+        - file: notebooks/00_data.ipynb
+        - file: notebooks/01_features_and_targets.ipynb
+        - file: notebooks/02_env_and_features_sanity.ipynb
+        - file: notebooks/03_sampler_diagnostics.ipynb
+        - file: notebooks/04_thompson_and_posterior_q.ipynb
+        - file: notebooks/05_main_comparison.ipynb
+        - file: notebooks/06_robustness.ipynb
+        - file: notebooks/07_thompson_cadence.ipynb
+        - file: notebooks/08_discussion.ipynb
+        - file: notebooks/09_prior_sensitivity.ipynb
+        - file: notebooks/10_conclusions.ipynb
+
+site:
+  template: book-theme
+  options:
+    hide_outline: false

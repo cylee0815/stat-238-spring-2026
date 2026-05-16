@@ -1,0 +1,67 @@
+name: Deploy MyST site
+
+# Builds the MyST website from final_project/ (committed notebook outputs,
+# no re-execution) and publishes it to GitHub Pages.
+#
+# One-time setup: repo Settings -> Pages -> Build and deployment ->
+# Source = "GitHub Actions". Until that is set, the deploy job will fail.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "final_project/notebooks/**"
+      - "final_project/README.md"
+      - "final_project/myst.yml"
+      - ".github/workflows/deploy-site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment; don't cancel an in-progress publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: final_project
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install MyST
+        run: npm install -g mystmd@^1
+
+      - name: Build HTML
+        # Project Pages serve from /<repo>, so MyST needs BASE_URL to emit
+        # correct asset paths. No --execute flag: stored outputs are rendered.
+        env:
+          BASE_URL: /${{ github.event.repository.name }}
+        run: myst build --html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Path is relative to the workspace root, not working-directory.
+          path: final_project/_build/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
