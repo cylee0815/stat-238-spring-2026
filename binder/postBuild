@@ -1,0 +1,10 @@
+#!/bin/bash
+# repo2docker runs this AFTER the conda env is built and the full repo is
+# copied into the image, with the repo root as the working directory.
+# That ordering is exactly why the editable install lives here and not in
+# binder/environment.yml: final_project/ does not exist yet during the
+# early conda-env layer.
+set -euo pipefail
+
+python -m pip install -e ./final_project
+python -c "import project; print('project package importable:', project.__file__)"

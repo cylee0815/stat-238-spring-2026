@@ -2,11 +2,15 @@
 #
 # repo2docker reads THIS file because `binder/` takes precedence over a
 # repo-root or subdirectory environment.yml. It mirrors the runtime
-# dependencies in `final_project/environment.yml`; the ONLY intentional
-# difference is the editable-install path, which must be relative to the
-# repo root (repo2docker's build context) instead of `final_project/`.
+# dependencies in `final_project/environment.yml`.
 #
 #   >>> If you edit final_project/environment.yml, mirror the change here. <<<
+#
+# IMPORTANT: the editable install of the local `project` package is NOT
+# here. repo2docker resolves the conda env in an early Docker layer using
+# ONLY this file — the repo source (final_project/) does not exist yet at
+# that point, so `-e ./final_project` would fail. The editable install is
+# done in `binder/postBuild`, which runs after the full repo is copied in.
 #
 # (The MyST / Node toolchain is intentionally absent — the published
 #  website is built in CI, not inside the Binder image.)
@@ -41,4 +45,5 @@ dependencies:
 
   - pip:
       - yfinance>=1.3.0,<2.0
-      - -e ./final_project
+      # NOTE: `-e ./final_project` is intentionally NOT here — see header.
+      #       It is installed by binder/postBuild instead.
